@@ -49,7 +49,8 @@ export default function SantiyeTable({
       e.iscilikPoz.toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.iscilikAciklama.toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.malzemePoz.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.malzemeAdi.toLowerCase().includes(searchTerm.toLowerCase());
+      e.malzemeAdi.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.createdBy && e.createdBy.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesSantral = filterSantral === 'ALL' || e.santral === filterSantral;
 
@@ -185,13 +186,16 @@ export default function SantiyeTable({
 
             return (
               <div key={row.id} className="p-3.5 bg-white space-y-2.5">
-                {/* Header row: Project ID, Date & Delete button */}
+                {/* Header row: Project ID, Date, Author & Delete button */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center flex-wrap gap-2">
                     <span className="font-bold text-blue-800 text-xs bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
                       {row.projeID}
                     </span>
                     <span className="text-[11px] text-slate-500 font-mono">{row.date}</span>
+                    <span className="text-[10px] bg-slate-100 border border-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-bold">
+                      👤 {row.createdBy || 'Sheff'}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-1">
@@ -337,6 +341,7 @@ export default function SantiyeTable({
               <th className="py-3 px-2">Birim</th>
               <th className="py-3 px-2 text-center">Fotoğraf</th>
               <th className="py-3 px-2 text-center">GPS Konum</th>
+              <th className="py-3 px-2 text-center">Ekleyen</th>
               <th className="py-3 px-2 text-center">Senkron</th>
               <th className="py-3 px-3 text-center">İşlem</th>
             </tr>
@@ -344,7 +349,7 @@ export default function SantiyeTable({
           <tbody className="divide-y divide-slate-200 font-medium">
             {filteredEntries.length === 0 ? (
               <tr>
-                <td colSpan={16} className="py-12 text-center text-slate-400">
+                <td colSpan={17} className="py-12 text-center text-slate-400">
                   <p className="text-sm font-semibold">Kayıt bulunamadı</p>
                   <p className="text-xs">Yukarıdaki formdan yeni imalat kaydı ekleyebilirsiniz.</p>
                 </td>
@@ -437,6 +442,13 @@ export default function SantiyeTable({
                       ) : (
                         <span className="text-slate-400 text-[11px]">-</span>
                       )}
+                    </td>
+
+                    {/* Ekleyen Kullanıcı Kolonu */}
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 font-bold text-[11px] border border-slate-200">
+                        {row.createdBy || 'Sheff'}
+                      </span>
                     </td>
 
                     {/* Senkron Durumu Kolonu */}

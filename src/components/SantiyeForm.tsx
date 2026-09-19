@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   Building2, 
   MapPin, 
@@ -37,6 +37,17 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
   const [saha, setSaha] = useState('SH-04 Modafen');
   const [kutu, setKutu] = useState('K-108A');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [createdBy, setCreatedBy] = useState<string>(
+    currentUser?.username || currentUser?.name || 'Sheff'
+  );
+
+  useEffect(() => {
+    if (currentUser?.username) {
+      setCreatedBy(currentUser.username);
+    } else if (currentUser?.name) {
+      setCreatedBy(currentUser.name);
+    }
+  }, [currentUser]);
 
   // Fotoğraflar State (Öncesi / Sonrası)
   const [beforePhoto, setBeforePhoto] = useState<string>('https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80');
@@ -320,7 +331,7 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
       beforePhoto: index === 0 ? (beforePhoto || undefined) : undefined,
       afterPhoto: index === 0 ? (afterPhoto || undefined) : undefined,
       location: location || undefined,
-      createdBy: currentUser?.name || 'Saha Personeli'
+      createdBy: (createdBy || currentUser?.username || currentUser?.name || 'Sheff').trim()
     }));
 
     onAddEntry(newEntries);
@@ -404,7 +415,7 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
             <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium">Ortak Bilgiler</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Proje ID</label>
               <input
@@ -452,6 +463,20 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
                 value={date}
                 onChange={e => setDate(e.target.value)}
                 className="w-full px-3 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                <span>Ekleyen Kullanıcı</span>
+                <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1 rounded">E-Tablo</span>
+              </label>
+              <input
+                type="text"
+                value={createdBy}
+                onChange={e => setCreatedBy(e.target.value)}
+                placeholder="Örn: Sheff / KABLO17599"
+                title="Google E-Tabloda 'Ekleyen Kullanıcı' sütununa kaydedilecek kullanıcı adı"
+                className="w-full px-3 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-emerald-50/60 border border-emerald-300 text-emerald-950 rounded-lg focus:ring-2 focus:ring-emerald-500 font-bold"
               />
             </div>
           </div>

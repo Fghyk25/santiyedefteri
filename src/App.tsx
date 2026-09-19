@@ -179,17 +179,25 @@ export default function App() {
     }
 
     const timestamp = new Date().toLocaleTimeString('tr-TR');
-    const createdItems: SantiyeEntry[] = newEntryDataList.map((item, index) => ({
-      ...item,
-      id: `ENTRY-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`,
-      createdAt: timestamp,
-      syncStatus: syncConfig.autoSync ? 'pending' : 'synced'
-    }));
+    const fallbackAuthor = currentUser?.username || currentUser?.name || 'Sheff';
+    const createdItems: SantiyeEntry[] = newEntryDataList.map((item, index) => {
+      const entryAuthor = item.createdBy && item.createdBy !== 'Ahmet Yılmaz' && item.createdBy !== 'Murat Kaya' && item.createdBy !== 'Saha Personeli'
+        ? item.createdBy
+        : fallbackAuthor;
+
+      return {
+        ...item,
+        createdBy: entryAuthor,
+        id: `ENTRY-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`,
+        createdAt: timestamp,
+        syncStatus: syncConfig.autoSync ? 'pending' : 'synced'
+      };
+    });
 
     setEntries(prev => [...createdItems, ...prev]);
 
     addLog(
-      `➕ ${createdItems.length} yeni imalat kaydı şantiye defterine eklendi (${createdItems[0].iscilikPoz}).`,
+      `➕ ${createdItems.length} yeni imalat kaydı şantiye defterine eklendi (${createdItems[0].iscilikPoz}) - Ekleyen: ${createdItems[0].createdBy}`,
       'info'
     );
 

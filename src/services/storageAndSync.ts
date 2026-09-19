@@ -133,7 +133,7 @@ export const INITIAL_ENTRIES: SantiyeEntry[] = [
       timestamp: new Date(Date.now() - 3600000).toLocaleTimeString('tr-TR'),
       mapsUrl: 'https://www.google.com/maps?q=40.9912,29.0285'
     },
-    createdBy: 'Ahmet Yılmaz',
+    createdBy: 'Sheff',
     createdAt: new Date(Date.now() - 3600000).toISOString(),
     syncStatus: 'synced',
     lastSyncedAt: new Date(Date.now() - 3500000).toLocaleTimeString('tr-TR')
@@ -163,7 +163,7 @@ export const INITIAL_ENTRIES: SantiyeEntry[] = [
       timestamp: new Date(Date.now() - 7200000).toLocaleTimeString('tr-TR'),
       mapsUrl: 'https://www.google.com/maps?q=40.9918,29.0291'
     },
-    createdBy: 'Murat Kaya',
+    createdBy: 'KABLO17599',
     createdAt: new Date(Date.now() - 7200000).toISOString(),
     syncStatus: 'synced',
     lastSyncedAt: new Date(Date.now() - 7100000).toLocaleTimeString('tr-TR')
@@ -193,7 +193,7 @@ export const INITIAL_ENTRIES: SantiyeEntry[] = [
       timestamp: new Date(Date.now() - 10800000).toLocaleTimeString('tr-TR'),
       mapsUrl: 'https://www.google.com/maps?q=39.9042,32.8601'
     },
-    createdBy: 'Ahmet Yılmaz',
+    createdBy: 'fiber17500',
     createdAt: new Date(Date.now() - 10800000).toISOString(),
     syncStatus: 'synced',
     lastSyncedAt: new Date(Date.now() - 10700000).toLocaleTimeString('tr-TR')
@@ -249,7 +249,25 @@ export function getStoredEntries(): SantiyeEntry[] {
       localStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify(INITIAL_ENTRIES));
       return INITIAL_ENTRIES;
     }
-    return JSON.parse(data);
+    const parsed: SantiyeEntry[] = JSON.parse(data);
+    let hasLegacyAuthor = false;
+
+    // Migrate any legacy placeholder author names ('Ahmet Yılmaz' / 'Murat Kaya' / empty)
+    const sanitized = parsed.map((entry, idx) => {
+      if (entry.createdBy === 'Ahmet Yılmaz' || entry.createdBy === 'Murat Kaya' || !entry.createdBy || entry.createdBy === 'Saha Personeli') {
+        hasLegacyAuthor = true;
+        // Map to corresponding actual system user
+        const newAuthor = idx % 2 === 0 ? 'Sheff' : 'KABLO17599';
+        return { ...entry, createdBy: newAuthor };
+      }
+      return entry;
+    });
+
+    if (hasLegacyAuthor) {
+      localStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify(sanitized));
+    }
+
+    return sanitized;
   } catch {
     return INITIAL_ENTRIES;
   }
@@ -304,6 +322,10 @@ export function mapEntriesToGoogleSheetRows(entries: SantiyeEntry[]) {
       seenProjects.add(e.projeID);
     }
 
+    const author = (e.createdBy && e.createdBy !== 'Ahmet Yılmaz' && e.createdBy !== 'Murat Kaya' && e.createdBy !== 'Saha Personeli')
+      ? e.createdBy
+      : 'Sheff';
+
     return {
       'Tarih': e.date,
       'Proje ID': e.projeID,
@@ -323,7 +345,7 @@ export function mapEntriesToGoogleSheetRows(entries: SantiyeEntry[]) {
       'Konum (Enlem, Boylam)': e.location ? `${e.location.lat.toFixed(5)}, ${e.location.lng.toFixed(5)}` : '-',
       'Konum Adresi': e.location?.address || '-',
       'Google Harita Linki': e.location?.mapsUrl || '-',
-      'Ekleyen Kullanıcı': e.createdBy,
+      'Ekleyen Kullanıcı': author,
       'Kayıt Saati': e.createdAt ? new Date(e.createdAt).toLocaleString('tr-TR') : '-',
       'Senkron Durumu': e.syncStatus === 'synced' ? 'Senkronize Edildi' : 'Beklemede'
     };
@@ -398,6 +420,9 @@ export async function dispatchToGoogleSheetsWebhook(
     }
     const bPhoto = isFirstForProject ? (e.beforePhoto || '') : '';
     const aPhoto = isFirstForProject ? (e.afterPhoto || '') : '';
+    const author = (e.createdBy && e.createdBy !== 'Ahmet Yılmaz' && e.createdBy !== 'Murat Kaya' && e.createdBy !== 'Saha Personeli')
+      ? e.createdBy
+      : 'Sheff';
 
     return {
       id: e.id,
@@ -420,7 +445,7 @@ export async function dispatchToGoogleSheetsWebhook(
       locationLng: e.location ? e.location.lng : null,
       locationAddress: e.location?.address || '-',
       mapsUrl: e.location?.mapsUrl || '-',
-      createdBy: e.createdBy,
+      createdBy: author,
       createdAt: e.createdAt,
       // Turkish keys for backward compatibility
       'Tarih': e.date,
@@ -441,7 +466,7 @@ export async function dispatchToGoogleSheetsWebhook(
       'Konum (Enlem, Boylam)': e.location ? `${e.location.lat.toFixed(5)}, ${e.location.lng.toFixed(5)}` : '-',
       'Konum Adresi': e.location?.address || '-',
       'Google Harita Linki': e.location?.mapsUrl || '-',
-      'Ekleyen Kullanıcı': e.createdBy,
+      'Ekleyen Kullanıcı': author,
       'Kayıt Saati': e.createdAt ? new Date(e.createdAt).toLocaleString('tr-TR') : '-',
       'Senkron Durumu': 'Senkronize Edildi'
     };

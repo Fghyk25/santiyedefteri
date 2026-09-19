@@ -163,7 +163,7 @@ export default function PhotoPreviewModal({ entry, onClose }: PhotoPreviewModalP
               <span className="text-slate-500 block flex items-center gap-1">
                 <UserCheck className="w-3 h-3 text-slate-400" /> Ekleyen
               </span>
-              <span className="font-medium text-slate-900">{entry.createdBy}</span>
+              <span className="font-semibold text-slate-900">{entry.createdBy || 'Sheff'}</span>
             </div>
           </div>
         </div>
