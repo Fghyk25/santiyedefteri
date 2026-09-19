@@ -1,0 +1,6 @@
+{
+  "name": "Şantiye Defteri & Saha Takip Sistemi",
+  "description": "İşçilik ve malzeme şantiye defteri, öncesi ve sonrası fotoğraflar, GPS konum kaydı, kullanıcı girişi ve Google Sheets anlık senkronizasyon dashboardu.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
