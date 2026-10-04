@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { 
   FileSpreadsheet, 
   RefreshCw, 
@@ -11,11 +12,14 @@ import {
   Layers, 
   ShieldCheck, 
   Activity,
-  Sliders
+  Sliders,
+  FileText
 } from 'lucide-react';
 import { ProjeTipi, SantiyeEntry, SyncConfig, SyncLogEvent } from '../types';
 import { exportToExcelFile } from '../services/storageAndSync';
 import SantiyeTable from './SantiyeTable';
+import WeeklyPerformanceChart from './WeeklyPerformanceChart';
+import WeeklyReportModal from './WeeklyReportModal';
 
 interface SyncDashboardProps {
   entries: SantiyeEntry[];
@@ -42,6 +46,8 @@ export default function SyncDashboard({
   onClearAll,
   onUpdateProjectMeta
 }: SyncDashboardProps) {
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
   const totalEntries = entries.length;
   const syncedEntries = entries.filter(e => e.syncStatus === 'synced').length;
   const pendingEntries = totalEntries - syncedEntries;
@@ -150,17 +156,29 @@ export default function SyncDashboard({
             </label>
           </div>
 
-          <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80">
+          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80">
+            <button
+              type="button"
+              onClick={() => setIsReportModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600/40 hover:bg-blue-600/60 border border-blue-400/40 text-blue-200 hover:text-white font-semibold transition text-xs cursor-pointer shadow-xs active:scale-98"
+              title="Mevcut şantiye verilerini filtreleyerek haftalık özet PDF raporu oluştur ve indir"
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-300" />
+              <span>Rapor İndir (PDF)</span>
+            </button>
             {syncConfig.googleSheetUrl && (
-              <a
-                href={syncConfig.googleSheetUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-semibold transition text-xs"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-                Google E-Tablo <ExternalLink className="w-3 h-3" />
-              </a>
+              <>
+                <span className="text-slate-600 hidden sm:inline">|</span>
+                <a
+                  href={syncConfig.googleSheetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-semibold transition text-xs"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Google E-Tablo <ExternalLink className="w-3 h-3" />
+                </a>
+              </>
             )}
             {onOpenSettings && (
               <>
@@ -245,6 +263,12 @@ export default function SyncDashboard({
           </div>
         </div>
       </div>
+
+      {/* Son 7 Günlük İşçilik Saati ve Malzeme Tüketimi Grafik Kartı */}
+      <WeeklyPerformanceChart 
+        entries={entries} 
+        onOpenReportModal={() => setIsReportModalOpen(true)}
+      />
 
       {/* Şantiye Defteri İmalat Kayıtları Tablosu & Kartları */}
       <SantiyeTable
@@ -414,16 +438,24 @@ export default function SyncDashboard({
           <div className="pt-3 flex flex-wrap gap-2">
             <button
               type="button"
+              onClick={() => setIsReportModalOpen(true)}
+              className="flex-1 min-w-[170px] flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Haftalık PDF Raporu İndir
+            </button>
+            <button
+              type="button"
               onClick={() => exportToExcelFile(entries)}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs"
+              className="flex-1 min-w-[170px] flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
-              Tüm Kayıtları Excel (.xlsx) İndir
+              Excel (.xlsx) İndir
             </button>
             <button
               type="button"
               onClick={onOpenSettings}
-              className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition"
+              className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition cursor-pointer"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
               Webhook Ayarları
@@ -431,6 +463,13 @@ export default function SyncDashboard({
           </div>
         </div>
       </div>
+
+      {/* Haftalık Özet PDF Raporu Modalı */}
+      <WeeklyReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        entries={entries}
+      />
     </div>
   );
 }

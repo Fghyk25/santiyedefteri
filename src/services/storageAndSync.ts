@@ -107,10 +107,17 @@ export const INITIAL_SYNC_CONFIG: SyncConfig = {
   lastSyncMessage: 'Google E-Tablolar anlık senkronizasyon motoru hazır.'
 };
 
+const getRelativeIsoDate = (daysAgo: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().slice(0, 10);
+};
+
 export const INITIAL_ENTRIES: SantiyeEntry[] = [
+  // Bugün (Day 0)
   {
     id: 'rec-001',
-    date: new Date().toISOString().slice(0, 10),
+    date: getRelativeIsoDate(0),
     projeID: 'PRJ-2026-IST',
     projeAdi: 'Moda Cad. FTTx Genişleme',
     projeTipi: 'Pasif',
@@ -142,7 +149,7 @@ export const INITIAL_ENTRIES: SantiyeEntry[] = [
   },
   {
     id: 'rec-002',
-    date: new Date().toISOString().slice(0, 10),
+    date: getRelativeIsoDate(0),
     projeID: 'PRJ-2026-IST',
     projeAdi: 'Moda Cad. FTTx Genişleme',
     projeTipi: 'Pasif',
@@ -172,9 +179,10 @@ export const INITIAL_ENTRIES: SantiyeEntry[] = [
     syncStatus: 'synced',
     lastSyncedAt: new Date(Date.now() - 7100000).toLocaleTimeString('tr-TR')
   },
+  // Dün (Day -1)
   {
     id: 'rec-003',
-    date: new Date().toISOString().slice(0, 10),
+    date: getRelativeIsoDate(1),
     projeID: 'PRJ-2026-ANK',
     projeAdi: 'Tunalı Direk Hasar Onarımı',
     projeTipi: 'Hasar',
@@ -196,13 +204,166 @@ export const INITIAL_ENTRIES: SantiyeEntry[] = [
       lng: 32.8601,
       accuracy: 5,
       address: 'Tunalı Hilmi Cad. No:78, Çankaya, Ankara',
-      timestamp: new Date(Date.now() - 10800000).toLocaleTimeString('tr-TR'),
+      timestamp: '14:30:00',
       mapsUrl: 'https://www.google.com/maps?q=39.9042,32.8601'
     },
     createdBy: 'fiber17500',
-    createdAt: new Date(Date.now() - 10800000).toISOString(),
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
     syncStatus: 'synced',
-    lastSyncedAt: new Date(Date.now() - 10700000).toLocaleTimeString('tr-TR')
+    lastSyncedAt: '14:32:00'
+  },
+  {
+    id: 'rec-004',
+    date: getRelativeIsoDate(1),
+    projeID: 'PRJ-2026-ANK',
+    projeAdi: 'Tunalı Direk Hasar Onarımı',
+    projeTipi: 'Hasar',
+    santral: 'Çankaya Santral',
+    saha: 'SH-12 Tunalı',
+    kutu: 'K-204B',
+    iscilikPoz: '8.5',
+    iscilikAciklama: 'Tesis Paylaşımı ve Saha Refakati (Mesai İçi)',
+    iscilikMiktar: '7.5',
+    iscilikBirim: 'saat',
+    malzemePoz: '88',
+    malzemeAdi: 'Lente Teli & Gergi Takımı',
+    malzemeMiktar: '8',
+    malzemeBirim: 'Ad.',
+    createdBy: 'Sheff',
+    createdAt: new Date(Date.now() - 82800000).toISOString(),
+    syncStatus: 'synced',
+    lastSyncedAt: '15:00:00'
+  },
+  // 2 Gün Önce (Day -2)
+  {
+    id: 'rec-005',
+    date: getRelativeIsoDate(2),
+    projeID: 'PRJ-2026-IZM',
+    projeAdi: 'Alsancak F/O Altyapı Yenileme',
+    projeTipi: 'Bakım',
+    santral: 'Alsancak Santral',
+    saha: 'SH-01 Kordon',
+    kutu: 'K-50',
+    iscilikPoz: '4.1',
+    iscilikAciklama: 'Fiber Ek Yapımı veya Terminasyonu',
+    iscilikMiktar: '16',
+    iscilikBirim: 'Ad.',
+    malzemePoz: '228',
+    malzemeAdi: 'F/O Ek Kaseti (12/24 Port)',
+    malzemeMiktar: '4',
+    malzemeBirim: 'Ad.',
+    createdBy: 'fiber17500',
+    createdAt: new Date(Date.now() - 172800000).toISOString(),
+    syncStatus: 'synced'
+  },
+  {
+    id: 'rec-006',
+    date: getRelativeIsoDate(2),
+    projeID: 'PRJ-2026-IZM',
+    projeAdi: 'Alsancak F/O Altyapı Yenileme',
+    projeTipi: 'Bakım',
+    santral: 'Alsancak Santral',
+    saha: 'SH-01 Kordon',
+    kutu: 'K-50',
+    iscilikPoz: '2.1',
+    iscilikAciklama: 'Kablo Kanalı/Tava İçinde Kablo Çekimi',
+    iscilikMiktar: '110',
+    iscilikBirim: 'Mt.',
+    malzemePoz: '261',
+    malzemeAdi: 'F/O Anahat Kablosu (24 Core)',
+    malzemeMiktar: '115',
+    malzemeBirim: 'Mt.',
+    createdBy: 'KABLO17600',
+    createdAt: new Date(Date.now() - 169200000).toISOString(),
+    syncStatus: 'synced'
+  },
+  // 3 Gün Önce (Day -3)
+  {
+    id: 'rec-007',
+    date: getRelativeIsoDate(3),
+    projeID: 'PRJ-2026-IST',
+    projeAdi: 'Ataşehir Finans Merkezi Pasif Hat',
+    projeTipi: 'Pasif',
+    santral: 'Ataşehir Santral',
+    saha: 'SH-08 Finans',
+    kutu: 'OFD-03',
+    iscilikPoz: '5.1',
+    iscilikAciklama: 'Saha Dolabı (OFDÇ / OFSD) Montajı ve Tespiti',
+    iscilikMiktar: '2',
+    iscilikBirim: 'Ad.',
+    malzemePoz: '190',
+    malzemeAdi: 'OFDÇ Tip Saha Dolabı (Baza Dahil)',
+    malzemeMiktar: '2',
+    malzemeBirim: 'Ad.',
+    createdBy: 'Sheff',
+    createdAt: new Date(Date.now() - 259200000).toISOString(),
+    syncStatus: 'synced'
+  },
+  // 4 Gün Önce (Day -4)
+  {
+    id: 'rec-008',
+    date: getRelativeIsoDate(4),
+    projeID: 'PRJ-2026-BUR',
+    projeAdi: 'Nilüfer Ana Arter HDPE Borulama',
+    projeTipi: 'Pasif',
+    santral: 'Nilüfer Santral',
+    saha: 'SH-02 FSM',
+    kutu: 'MH-14',
+    iscilikPoz: '10.1',
+    iscilikAciklama: 'Çift Cidarlı HDPE Boru Döşenmesi',
+    iscilikMiktar: '60',
+    iscilikBirim: 'Mt.',
+    malzemePoz: '1',
+    malzemeAdi: '50/40 mm HDPE Çift Cidarlı Boru',
+    malzemeMiktar: '65',
+    malzemeBirim: 'Mt.',
+    createdBy: 'KABLO17599',
+    createdAt: new Date(Date.now() - 345600000).toISOString(),
+    syncStatus: 'synced'
+  },
+  // 5 Gün Önce (Day -5)
+  {
+    id: 'rec-009',
+    date: getRelativeIsoDate(5),
+    projeID: 'PRJ-2026-ANT',
+    projeAdi: 'Muratpaşa Enerji ve Topraklama',
+    projeTipi: 'Bakım',
+    santral: 'Muratpaşa Santral',
+    saha: 'SH-05 Lara',
+    kutu: 'TP-01',
+    iscilikPoz: '8.6',
+    iscilikAciklama: 'İmalatların ve Malzeme Verilerinin Sisteme Girilmesi',
+    iscilikMiktar: '8',
+    iscilikBirim: 'saat',
+    malzemePoz: '145',
+    malzemeAdi: 'Bakır Topraklama Çubuğu (20mm x 1.5m)',
+    malzemeMiktar: '6',
+    malzemeBirim: 'Ad.',
+    createdBy: 'Sheff',
+    createdAt: new Date(Date.now() - 432000000).toISOString(),
+    syncStatus: 'synced'
+  },
+  // 6 Gün Önce (Day -6)
+  {
+    id: 'rec-010',
+    date: getRelativeIsoDate(6),
+    projeID: 'PRJ-2026-IST',
+    projeAdi: 'Beşiktaş F/O Ek Yenileme',
+    projeTipi: 'Bakım',
+    santral: 'Beşiktaş Santral',
+    saha: 'SH-09 Abbasağa',
+    kutu: 'K-12',
+    iscilikPoz: '4.1',
+    iscilikAciklama: 'Fiber Ek Yapımı veya Terminasyonu',
+    iscilikMiktar: '20',
+    iscilikBirim: 'Ad.',
+    malzemePoz: '228',
+    malzemeAdi: 'F/O Ek Kaseti (12/24 Port)',
+    malzemeMiktar: '5',
+    malzemeBirim: 'Ad.',
+    createdBy: 'fiber17500',
+    createdAt: new Date(Date.now() - 518400000).toISOString(),
+    syncStatus: 'synced'
   }
 ];
 
@@ -276,11 +437,22 @@ export function getStoredEntries(): SantiyeEntry[] {
       return updated;
     });
 
-    if (hasLegacyAuthor) {
-      localStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify(sanitized));
+    // If stored entries has fewer than 5 entries, merge historical entries from INITIAL_ENTRIES so 7-day chart is complete
+    let result = sanitized;
+    if (result.length < 5) {
+      const existingIds = new Set(result.map(e => e.id));
+      const missing = INITIAL_ENTRIES.filter(e => !existingIds.has(e.id));
+      if (missing.length > 0) {
+        result = [...result, ...missing];
+        hasLegacyAuthor = true;
+      }
     }
 
-    return sanitized;
+    if (hasLegacyAuthor) {
+      localStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify(result));
+    }
+
+    return result;
   } catch {
     return INITIAL_ENTRIES;
   }
