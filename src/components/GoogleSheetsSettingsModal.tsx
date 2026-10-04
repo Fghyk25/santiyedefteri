@@ -57,13 +57,13 @@ function doPost(e) {
     // 2. Tablo başlıkları henüz yoksa ekle ve biçimlendir
     if (sheet.getLastRow() === 0) {
       sheet.appendRow([
-        'Tarih', 'Proje ID', 'Santral', 'Saha / Bölge', 'Kutu / Dolap No',
+        'Tarih', 'Proje Adı', 'Proje ID', 'Proje Tipi', 'Santral', 'Saha / Bölge', 'Kutu / Dolap No',
         'İşçilik Poz', 'İşçilik Açıklama', 'İşçilik Miktar', 'İşçilik Birim',
         'Malzeme Poz', 'Malzeme Adı', 'Malzeme Miktar', 'Malzeme Birim',
         'Öncesi Fotoğraf (Google Drive Linki)', 'Sonrası Fotoğraf (Google Drive Linki)', 'Konum (Enlem, Boylam)',
         'Konum Adresi', 'Google Harita Linki', 'Ekleyen Kullanıcı', 'Kayıt Saati', 'Senkron Durumu'
       ]);
-      var headerRange = sheet.getRange(1, 1, 1, 21);
+      var headerRange = sheet.getRange(1, 1, 1, 23);
       headerRange.setBackground('#1e293b').setFontColor('#ffffff').setFontWeight('bold');
     }
     
@@ -140,7 +140,9 @@ function doPost(e) {
       
       sheet.appendRow([
         row['Tarih'] || row.date || '',
-        row['Proje ID'] || row.projeID || '',
+        row['Proje Adı'] || row.projeAdi || '-',
+        row['Proje ID'] || row.projeID || 'Atanmadı',
+        row['Proje Tipi'] || row.projeTipi || '-',
         row['Santral'] || row.santral || '',
         row['Saha / Bölge'] || row.saha || '',
         row['Kutu / Dolap No'] || row.kutu || '',

@@ -1,5 +1,6 @@
-import { X, MapPin, ExternalLink, Calendar, UserCheck, CheckCircle2 } from 'lucide-react';
+import { X, MapPin, ExternalLink, Calendar, UserCheck, CheckCircle2, Sparkles } from 'lucide-react';
 import { SantiyeEntry } from '../types';
+import { getImageSizeDisplay } from '../utils/imageCompressor';
 
 interface PhotoPreviewModalProps {
   entry: SantiyeEntry | null;
@@ -16,9 +17,19 @@ export default function PhotoPreviewModal({ entry, onClose }: PhotoPreviewModalP
         <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-10">
           <div>
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              {entry.projeAdi && (
+                <span className="text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded bg-slate-900 text-white">
+                  {entry.projeAdi}
+                </span>
+              )}
               <span className="text-[11px] sm:text-xs font-semibold px-2 py-0.5 rounded bg-blue-100 text-blue-800">
-                {entry.projeID}
+                ID: {entry.projeID || 'Atanmadı'}
               </span>
+              {entry.projeTipi && (
+                <span className="text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-800">
+                  Tip: {entry.projeTipi}
+                </span>
+              )}
               <span className="text-[11px] sm:text-xs font-semibold px-2 py-0.5 rounded bg-slate-200 text-slate-700">
                 {entry.santral} - {entry.saha}
               </span>
@@ -57,11 +68,19 @@ export default function PhotoPreviewModal({ entry, onClose }: PhotoPreviewModalP
               </div>
               <div className="aspect-4/3 rounded-xl border border-slate-200 bg-slate-100 overflow-hidden flex items-center justify-center relative group">
                 {entry.beforePhoto ? (
-                  <img
-                    src={entry.beforePhoto}
-                    alt="Çalışma Öncesi"
-                    className="w-full h-full object-cover transition duration-300 group-hover:scale-102"
-                  />
+                  <>
+                    <img
+                      src={entry.beforePhoto}
+                      alt="Çalışma Öncesi"
+                      className="w-full h-full object-cover transition duration-300 group-hover:scale-102"
+                    />
+                    <div className="absolute bottom-2 left-2 pointer-events-none">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-slate-950/85 backdrop-blur-xs text-white px-2 py-0.5 rounded-md border border-amber-400/50 shadow-xs">
+                        <Sparkles className="w-3 h-3 text-amber-400" />
+                        {getImageSizeDisplay(entry.beforePhoto).sizeFormatted} (~1MB)
+                      </span>
+                    </div>
+                  </>
                 ) : (
                   <div className="text-center p-6 text-slate-400">
                     <p className="text-sm font-medium">Öncesi fotoğrafı bulunamadı</p>
@@ -87,11 +106,19 @@ export default function PhotoPreviewModal({ entry, onClose }: PhotoPreviewModalP
               </div>
               <div className="aspect-4/3 rounded-xl border border-slate-200 bg-slate-100 overflow-hidden flex items-center justify-center relative group">
                 {entry.afterPhoto ? (
-                  <img
-                    src={entry.afterPhoto}
-                    alt="Çalışma Sonrası"
-                    className="w-full h-full object-cover transition duration-300 group-hover:scale-102"
-                  />
+                  <>
+                    <img
+                      src={entry.afterPhoto}
+                      alt="Çalışma Sonrası"
+                      className="w-full h-full object-cover transition duration-300 group-hover:scale-102"
+                    />
+                    <div className="absolute bottom-2 left-2 pointer-events-none">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-slate-950/85 backdrop-blur-xs text-white px-2 py-0.5 rounded-md border border-emerald-400/50 shadow-xs">
+                        <Sparkles className="w-3 h-3 text-emerald-400" />
+                        {getImageSizeDisplay(entry.afterPhoto).sizeFormatted} (~1MB)
+                      </span>
+                    </div>
+                  </>
                 ) : (
                   <div className="text-center p-6 text-slate-400">
                     <p className="text-sm font-medium">Sonrası fotoğrafı bulunamadı</p>

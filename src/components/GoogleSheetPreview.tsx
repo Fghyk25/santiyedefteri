@@ -37,6 +37,8 @@ export default function GoogleSheetPreview({
 
   const filteredEntries = entries.filter(e =>
     e.projeID.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (e.projeAdi && e.projeAdi.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (e.projeTipi && e.projeTipi.toLowerCase().includes(searchTerm.toLowerCase())) ||
     e.santral.toLowerCase().includes(searchTerm.toLowerCase()) ||
     e.saha.toLowerCase().includes(searchTerm.toLowerCase()) ||
     e.iscilikPoz.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -173,7 +175,9 @@ export default function GoogleSheetPreview({
 
                   {/* Columns */}
                   <td className="py-2 px-3 border-r border-slate-200 font-mono text-slate-600 whitespace-nowrap">{rowData['Tarih']}</td>
+                  <td className="py-2 px-3 border-r border-slate-200 font-bold text-slate-900 whitespace-nowrap">{rowData['Proje Adı']}</td>
                   <td className="py-2 px-3 border-r border-slate-200 font-bold text-blue-700 whitespace-nowrap">{rowData['Proje ID']}</td>
+                  <td className="py-2 px-3 border-r border-slate-200 font-bold text-center whitespace-nowrap">{rowData['Proje Tipi']}</td>
                   <td className="py-2 px-3 border-r border-slate-200 font-medium whitespace-nowrap">{rowData['Santral']}</td>
                   <td className="py-2 px-3 border-r border-slate-200 whitespace-nowrap">{rowData['Saha / Bölge']}</td>
                   <td className="py-2 px-3 border-r border-slate-200 font-mono whitespace-nowrap">{rowData['Kutu / Dolap No']}</td>

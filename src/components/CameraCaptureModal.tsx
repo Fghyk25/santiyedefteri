@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Camera, X, RefreshCw, Check } from 'lucide-react';
+import { Camera, X, RefreshCw, Check, Sparkles, Loader2 } from 'lucide-react';
+import { compressImage, getImageSizeDisplay } from '../utils/imageCompressor';
 
 interface CameraCaptureModalProps {
   isOpen: boolean;
@@ -13,6 +14,8 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, title }
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const [isCompressing, setIsCompressing] = useState<boolean>(false);
+  const [photoSizeText, setPhotoSizeText] = useState<string>('');
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -55,23 +58,36 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, title }
     }
   };
 
-  const handleTakePhoto = () => {
+  const handleTakePhoto = async () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      setCapturedImage(dataUrl);
+      const rawDataUrl = canvas.toDataURL('image/jpeg', 0.9);
       stopCamera();
+      setIsCompressing(true);
+      try {
+        const compressed = await compressImage(rawDataUrl, { maxSizeKb: 1024, maxDimension: 1920 });
+        setCapturedImage(compressed.dataUrl);
+        setPhotoSizeText(compressed.sizeFormatted);
+      } catch (err) {
+        console.warn('Compression fallback:', err);
+        setCapturedImage(rawDataUrl);
+        const display = getImageSizeDisplay(rawDataUrl);
+        setPhotoSizeText(display.sizeFormatted);
+      } finally {
+        setIsCompressing(false);
+      }
     }
   };
 
   const handleRetake = () => {
     setCapturedImage(null);
+    setPhotoSizeText('');
   };
 
   const handleConfirm = () => {
@@ -79,6 +95,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, title }
       onCapture(capturedImage);
       onClose();
       setCapturedImage(null);
+      setPhotoSizeText('');
     }
   };
 
@@ -116,11 +133,19 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, title }
               <p className="text-sm">{cameraError}</p>
             </div>
           ) : capturedImage ? (
-            <img
-              src={capturedImage}
-              alt="Çekilen Fotoğraf"
-              className="w-full h-full object-contain"
-            />
+            <div className="relative w-full h-full flex items-center justify-center">
+              <img
+                src={capturedImage}
+                alt="Çekilen Fotoğraf"
+                className="w-full h-full object-contain"
+              />
+              {photoSizeText && (
+                <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-xs text-white text-[11px] font-semibold px-2.5 py-1 rounded-full border border-emerald-500/40 flex items-center gap-1.5 shadow-md">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{photoSizeText} (~1MB Optimize)</span>
+                </div>
+              )}
+            </div>
           ) : (
             <video
               ref={videoRef}
@@ -129,6 +154,14 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, title }
               muted
               className="w-full h-full object-cover"
             />
+          )}
+
+          {/* Compressing spinner overlay */}
+          {isCompressing && (
+            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-center text-white p-4">
+              <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mb-2" />
+              <span className="text-sm font-medium">Fotoğraf ~1MB boyutuna optimize ediliyor...</span>
+            </div>
           )}
 
           {/* Grid target overlay in viewfinder */}

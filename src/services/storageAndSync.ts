@@ -112,6 +112,8 @@ export const INITIAL_ENTRIES: SantiyeEntry[] = [
     id: 'rec-001',
     date: new Date().toISOString().slice(0, 10),
     projeID: 'PRJ-2026-IST',
+    projeAdi: 'Moda Cad. FTTx Genişleme',
+    projeTipi: 'Pasif',
     santral: 'Kadıköy Santral',
     saha: 'SH-04 Modafen',
     kutu: 'K-108A',
@@ -142,6 +144,8 @@ export const INITIAL_ENTRIES: SantiyeEntry[] = [
     id: 'rec-002',
     date: new Date().toISOString().slice(0, 10),
     projeID: 'PRJ-2026-IST',
+    projeAdi: 'Moda Cad. FTTx Genişleme',
+    projeTipi: 'Pasif',
     santral: 'Kadıköy Santral',
     saha: 'SH-04 Modafen',
     kutu: 'K-108A',
@@ -172,6 +176,8 @@ export const INITIAL_ENTRIES: SantiyeEntry[] = [
     id: 'rec-003',
     date: new Date().toISOString().slice(0, 10),
     projeID: 'PRJ-2026-ANK',
+    projeAdi: 'Tunalı Direk Hasar Onarımı',
+    projeTipi: 'Hasar',
     santral: 'Çankaya Santral',
     saha: 'SH-12 Tunalı',
     kutu: 'K-204B',
@@ -252,15 +258,22 @@ export function getStoredEntries(): SantiyeEntry[] {
     const parsed: SantiyeEntry[] = JSON.parse(data);
     let hasLegacyAuthor = false;
 
-    // Migrate any legacy placeholder author names ('Ahmet Yılmaz' / 'Murat Kaya' / empty)
+    // Migrate any legacy placeholder author names ('Ahmet Yılmaz' / 'Murat Kaya' / empty) and ensure projeAdi/projeTipi
     const sanitized = parsed.map((entry, idx) => {
-      if (entry.createdBy === 'Ahmet Yılmaz' || entry.createdBy === 'Murat Kaya' || !entry.createdBy || entry.createdBy === 'Saha Personeli') {
+      let updated = { ...entry };
+      if (updated.createdBy === 'Ahmet Yılmaz' || updated.createdBy === 'Murat Kaya' || !updated.createdBy || updated.createdBy === 'Saha Personeli') {
         hasLegacyAuthor = true;
-        // Map to corresponding actual system user
-        const newAuthor = idx % 2 === 0 ? 'Sheff' : 'KABLO17599';
-        return { ...entry, createdBy: newAuthor };
+        updated.createdBy = idx % 2 === 0 ? 'Sheff' : 'KABLO17599';
       }
-      return entry;
+      if (!updated.projeAdi) {
+        hasLegacyAuthor = true;
+        updated.projeAdi = `${updated.santral || 'Saha'} ${updated.saha || ''} İmalatı`.trim();
+      }
+      if (!updated.projeTipi && updated.projeID && updated.projeID !== 'Atanmadı') {
+        hasLegacyAuthor = true;
+        updated.projeTipi = idx === 2 ? 'Hasar' : 'Pasif';
+      }
+      return updated;
     });
 
     if (hasLegacyAuthor) {
@@ -316,10 +329,12 @@ export function mapEntriesToGoogleSheetRows(entries: SantiyeEntry[]) {
   const seenProjects = new Set<string>();
 
   return entries.map(e => {
-    // Bir proje ID için öncesi ve sonrası için birer foto yeterlidir (yalnızca ilk satırda):
-    const isFirstForProject = !seenProjects.has(e.projeID);
+    const projectKey = (e.projeID && e.projeID !== 'Atanmadı')
+      ? e.projeID
+      : `${e.projeAdi || ''}_${e.santral}_${e.kutu}_${e.date}`;
+    const isFirstForProject = !seenProjects.has(projectKey);
     if (isFirstForProject) {
-      seenProjects.add(e.projeID);
+      seenProjects.add(projectKey);
     }
 
     const author = (e.createdBy && e.createdBy !== 'Ahmet Yılmaz' && e.createdBy !== 'Murat Kaya' && e.createdBy !== 'Saha Personeli')
@@ -328,7 +343,9 @@ export function mapEntriesToGoogleSheetRows(entries: SantiyeEntry[]) {
 
     return {
       'Tarih': e.date,
-      'Proje ID': e.projeID,
+      'Proje Adı': e.projeAdi || '-',
+      'Proje ID': e.projeID || 'Atanmadı',
+      'Proje Tipi': e.projeTipi || '-',
       'Santral': e.santral,
       'Saha / Bölge': e.saha,
       'Kutu / Dolap No': e.kutu,
@@ -365,7 +382,9 @@ export function exportToExcelFile(entries: SantiyeEntry[], filenamePrefix = 'San
   // Set column widths for readability
   const colWidths = [
     { wch: 12 }, // Tarih
+    { wch: 24 }, // Proje Adı
     { wch: 15 }, // Proje ID
+    { wch: 12 }, // Proje Tipi
     { wch: 18 }, // Santral
     { wch: 18 }, // Saha
     { wch: 14 }, // Kutu
@@ -411,12 +430,15 @@ export async function dispatchToGoogleSheetsWebhook(
   const webhookUrl = typeof configOrUrl === 'string' ? configOrUrl : (configOrUrl.googleWebhookUrl || '');
 
   // Prepare payload with image base64 / URLs.
-  // Bir Proje ID için öncesi ve sonrası birer fotoğraf iletilir; gereksiz yükleme ve tekrarlar önlenir.
+  // Bir Proje ID/Adı için öncesi ve sonrası birer fotoğraf iletilir; gereksiz yükleme ve tekrarlar önlenir.
   const seenWebhookProjects = new Set<string>();
   const payloadEntries = entries.map(e => {
-    const isFirstForProject = !seenWebhookProjects.has(e.projeID);
+    const projectKey = (e.projeID && e.projeID !== 'Atanmadı')
+      ? e.projeID
+      : `${e.projeAdi || ''}_${e.santral}_${e.kutu}_${e.date}`;
+    const isFirstForProject = !seenWebhookProjects.has(projectKey);
     if (isFirstForProject) {
-      seenWebhookProjects.add(e.projeID);
+      seenWebhookProjects.add(projectKey);
     }
     const bPhoto = isFirstForProject ? (e.beforePhoto || '') : '';
     const aPhoto = isFirstForProject ? (e.afterPhoto || '') : '';
@@ -427,7 +449,9 @@ export async function dispatchToGoogleSheetsWebhook(
     return {
       id: e.id,
       date: e.date,
-      projeID: e.projeID,
+      projeAdi: e.projeAdi || '-',
+      projeID: e.projeID || 'Atanmadı',
+      projeTipi: e.projeTipi || '-',
       santral: e.santral,
       saha: e.saha,
       kutu: e.kutu,
@@ -449,7 +473,9 @@ export async function dispatchToGoogleSheetsWebhook(
       createdAt: e.createdAt,
       // Turkish keys for backward compatibility
       'Tarih': e.date,
-      'Proje ID': e.projeID,
+      'Proje Adı': e.projeAdi || '-',
+      'Proje ID': e.projeID || 'Atanmadı',
+      'Proje Tipi': e.projeTipi || '-',
       'Santral': e.santral,
       'Saha / Bölge': e.saha,
       'Kutu / Dolap No': e.kutu,

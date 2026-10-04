@@ -21,11 +21,23 @@ export interface JobItem {
   poz: string;
   desc: string;
   unit: string;
+  categoryCode?: string;
+  categoryTitle?: string;
+}
+
+export interface MalzemeGroup {
+  id: string;
+  title: string;
+  shortTitle: string;
+  defaultUnit: string;
 }
 
 export interface MalzemeItem {
   kod: string;
   ad: string;
+  groupId: string;
+  groupTitle: string;
+  defaultUnit: string;
 }
 
 export interface LocationData {
@@ -49,10 +61,14 @@ export interface StagedPozLine {
   malzemeBirim: string;
 }
 
+export type ProjeTipi = 'Hasar' | 'Pasif' | 'Bakım' | '';
+
 export interface SantiyeEntry {
   id: string;
   date: string;
   projeID: string;
+  projeAdi?: string;
+  projeTipi?: ProjeTipi;
   santral: string;
   saha: string;
   kutu: string;

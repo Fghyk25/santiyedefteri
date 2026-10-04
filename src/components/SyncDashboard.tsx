@@ -13,7 +13,7 @@ import {
   Activity,
   Sliders
 } from 'lucide-react';
-import { SantiyeEntry, SyncConfig, SyncLogEvent } from '../types';
+import { ProjeTipi, SantiyeEntry, SyncConfig, SyncLogEvent } from '../types';
 import { exportToExcelFile } from '../services/storageAndSync';
 import SantiyeTable from './SantiyeTable';
 
@@ -27,6 +27,7 @@ interface SyncDashboardProps {
   onOpenSettings?: () => void;
   onDeleteEntry?: (id: string) => void;
   onClearAll?: () => void;
+  onUpdateProjectMeta?: (entryId: string, projeID: string, projeTipi: ProjeTipi, applyToSameProjectName?: boolean) => void;
 }
 
 export default function SyncDashboard({
@@ -38,7 +39,8 @@ export default function SyncDashboard({
   onUpdateAutoSync,
   onOpenSettings,
   onDeleteEntry,
-  onClearAll
+  onClearAll,
+  onUpdateProjectMeta
 }: SyncDashboardProps) {
   const totalEntries = entries.length;
   const syncedEntries = entries.filter(e => e.syncStatus === 'synced').length;
@@ -251,6 +253,7 @@ export default function SyncDashboard({
         onClearAll={onClearAll}
         onTriggerSync={onTriggerSync}
         isSyncing={isSyncing}
+        onUpdateProjectMeta={onUpdateProjectMeta}
       />
 
       {/* Analytics & Distribution Grid */}

@@ -1,4 +1,129 @@
-import { JobItem, MalzemeItem } from '../types';
+import { JobItem, MalzemeGroup, MalzemeItem } from '../types';
+
+export const JOB_CATEGORY_TITLES: Record<string, string> = {
+  '1': '1. Direk, Lente ve Fider İşleri',
+  '2': '2. Kablo Çekimi, Boru, Kanal ve Tava İşleri',
+  '3': '3. Bakır & Enerji Ek, Terminasyon ve Repartitör',
+  '4': '4. Fiber Optik Ek ve Terminasyon İşleri',
+  '5': '5. Kabin, Saha Dolabı, Kutu ve Pano Montajı',
+  '6': '6. Bina İçi ve Daire İçi OBK Kurulum İşleri',
+  '7': '7. Camper Teli, Şablon ve FWA Kurulumu',
+  '8': '8. Topraklama, Göz Tıkama ve Aktivasyon İşleri',
+  '9': '9. Menhol ve Ek Odası Yapım / Bakım İşleri',
+  '10': '10. HDPE/Galvaniz Boru, Kazı, Dolgu ve Kaplama',
+  '11': '11. Şebeke İyileştirme, Bakım ve Arıza Tespiti',
+};
+
+export const MALZEME_GROUPS: MalzemeGroup[] = [
+  {
+    id: 'direk_lente',
+    title: 'Direk, İstavroz ve Havai Hat Malzemeleri',
+    shortTitle: 'Direk & Lente',
+    defaultUnit: 'Ad.',
+  },
+  {
+    id: 'hdpe_boru',
+    title: 'HDPE Boru, Mikroboru ve Göz Çoklayıcılar',
+    shortTitle: 'HDPE & Göz Çoklayıcı',
+    defaultUnit: 'Mt.',
+  },
+  {
+    id: 'spiral_galvaniz_boru',
+    title: 'Spiral Boru (Çelik / Plastik / HF) & Galvanizli Borular',
+    shortTitle: 'Spiral & Galvaniz Boru',
+    defaultUnit: 'Mt.',
+  },
+  {
+    id: 'kablo_tavasi_kanali',
+    title: 'Kablo Kanalı, Kablo Tavası ve Kablo Merdiveni',
+    shortTitle: 'Kanal & Tava',
+    defaultUnit: 'Mt.',
+  },
+  {
+    id: 'fo_anahat_kablo',
+    title: 'Fiber Optik Anahat Kabloları (FO-H / FO-Y / FO-M / FO-NM)',
+    shortTitle: 'F/O Anahat Kablo',
+    defaultUnit: 'Mt.',
+  },
+  {
+    id: 'obk_bina_kablo',
+    title: 'OBK, Riser, K-OBK ve TK-OBK Bina/Abone Fiber Kabloları',
+    shortTitle: 'OBK & K-OBK Kablo',
+    defaultUnit: 'Mt.',
+  },
+  {
+    id: 'bakir_anahat_kablo',
+    title: 'Bakır Anahat ve Abone Kabloları (KPDF / KPD-PAP / PD-P-A)',
+    shortTitle: 'Bakır Kablolar',
+    defaultUnit: 'Mt.',
+  },
+  {
+    id: 'fo_ek_splitter_kutu',
+    title: 'F/O Ek Kutusu, Optik Bölücü (Splitter) & OFDK/OFDP/OFSK Kutular',
+    shortTitle: 'F/O Ek & OFDK/Splitter',
+    defaultUnit: 'Ad.',
+  },
+  {
+    id: 'fo_patchcord_ulink',
+    title: 'Fiber Patchcord, U-Link, Zayıflatıcı ve CAT6 Patch Kablolar',
+    shortTitle: 'Patchcord & Zayıflatıcı',
+    defaultUnit: 'Ad.',
+  },
+  {
+    id: 'bakir_ek_modul',
+    title: 'Bakır Modül (10\'luk), Konnektör, BEKT Ek Kiti & Dağıtım Kutuları',
+    shortTitle: 'Bakır Ek & Modül/Kutu',
+    defaultUnit: 'Ad.',
+  },
+  {
+    id: 'camper_teli',
+    title: 'Camper Telleri (Mavi-Beyaz / Turuncu-Beyaz / nDSL)',
+    shortTitle: 'Camper Teli',
+    defaultUnit: 'Mt.',
+  },
+  {
+    id: 'kabinet_saha_dolabi',
+    title: 'Saha Dolabı, OFSD, 19" Rack Kabinet ve Kabin İçi Aksesuarlar',
+    shortTitle: 'Kabin & Saha Dolabı',
+    defaultUnit: 'Ad.',
+  },
+  {
+    id: 'pano_enerji_priz',
+    title: 'Sac Pano, Sigorta/Röle, Enerji Kablosu, AG Ek Mufu ve Prizler',
+    shortTitle: 'Enerji, Pano & Priz',
+    defaultUnit: 'Ad.',
+  },
+  {
+    id: 'topraklama',
+    title: 'Topraklama Levhası, Çubuğu, İletkenleri ve Kiti',
+    shortTitle: 'Topraklama',
+    defaultUnit: 'Ad.',
+  },
+  {
+    id: 'menhol_ek_odasi',
+    title: 'Menhol, Ek Odası, Kompozit Kapak/Çerçeve ve Beton Kaide',
+    shortTitle: 'Menhol & Ek Odası',
+    defaultUnit: 'Ad.',
+  },
+  {
+    id: 'tika_malzemesi',
+    title: 'Menhol ve Göz Tıkama Malzemeleri (Protolin / Mekanik)',
+    shortTitle: 'Göz Tıkama',
+    defaultUnit: 'Ad.',
+  },
+  {
+    id: 'kazi_kaplama_beton',
+    title: 'Parke, Bordür, Beton, Soğuk Asfalt ve Dolgu/Sargı Malzemeleri',
+    shortTitle: 'Kazı, Beton & Kaplama',
+    defaultUnit: 'M2',
+  },
+  {
+    id: 'donanim_kkd',
+    title: 'Ölçü Aleti, El Aletleri ve Kişisel Koruyucu Donanım (KKD)',
+    shortTitle: 'Donanım & KKD',
+    defaultUnit: 'Ad.',
+  },
+];
 
 export const JOB_DATA_RAW = `POZ;ESAS;Miktar
 1.1;Direk Dikimi;Ad.
@@ -867,13 +992,188 @@ export const MALZEME_DATA_RAW = `POZ NO;POZ ADI
 98;Çelik spiral boru 32 mm
 99;Çelik spiral boru 37 mm`;
 
+function getGroupTitle(groupId: string): string {
+  return MALZEME_GROUPS.find(g => g.id === groupId)?.title || 'Diğer Malzemeler';
+}
+
+export function classifyMalzeme(kodStr: string, ad: string): { groupId: string; groupTitle: string; defaultUnit: string } {
+  const n = parseInt(kodStr, 10);
+
+  if ((n >= 1 && n <= 14) || n === 20 || n === 21) {
+    const isManson = [2, 4, 6, 8, 14].includes(n);
+    return {
+      groupId: 'hdpe_boru',
+      groupTitle: getGroupTitle('hdpe_boru'),
+      defaultUnit: isManson ? 'Ad.' : 'Mt.',
+    };
+  }
+
+  if ((n >= 23 && n <= 28) || (n >= 31 && n <= 33) || n === 40 || n === 41) {
+    return {
+      groupId: 'menhol_ek_odasi',
+      groupTitle: getGroupTitle('menhol_ek_odasi'),
+      defaultUnit: 'Ad.',
+    };
+  }
+
+  if ((n >= 42 && n <= 51) || n === 806) {
+    const unit = n === 50 || n === 806 ? 'M3' : n === 48 ? 'Mt.' : 'M2';
+    return {
+      groupId: 'kazi_kaplama_beton',
+      groupTitle: getGroupTitle('kazi_kaplama_beton'),
+      defaultUnit: unit,
+    };
+  }
+
+  if (n >= 53 && n <= 55) {
+    return {
+      groupId: 'tika_malzemesi',
+      groupTitle: getGroupTitle('tika_malzemesi'),
+      defaultUnit: 'Ad.',
+    };
+  }
+
+  if ((n >= 56 && n <= 58) || n === 207) {
+    return {
+      groupId: 'direk_lente',
+      groupTitle: getGroupTitle('direk_lente'),
+      defaultUnit: 'Ad.',
+    };
+  }
+
+  if ((n >= 59 && n <= 67) || (n >= 189 && n <= 193)) {
+    return {
+      groupId: 'bakir_ek_modul',
+      groupTitle: getGroupTitle('bakir_ek_modul'),
+      defaultUnit: 'Ad.',
+    };
+  }
+
+  if (n === 68 || (n >= 130 && n <= 142)) {
+    const isAdet = n === 68 || n === 130 || n === 131;
+    return {
+      groupId: 'topraklama',
+      groupTitle: getGroupTitle('topraklama'),
+      defaultUnit: isAdet ? 'Ad.' : 'Mt.',
+    };
+  }
+
+  if (n >= 69 && n <= 116) {
+    return {
+      groupId: 'spiral_galvaniz_boru',
+      groupTitle: getGroupTitle('spiral_galvaniz_boru'),
+      defaultUnit: 'Mt.',
+    };
+  }
+
+  if ((n >= 117 && n <= 129) || (n >= 143 && n <= 155)) {
+    return {
+      groupId: 'kablo_tavasi_kanali',
+      groupTitle: getGroupTitle('kablo_tavasi_kanali'),
+      defaultUnit: 'Mt.',
+    };
+  }
+
+  if (n === 52 || (n >= 156 && n <= 173) || (n >= 203 && n <= 206) || (n >= 212 && n <= 221)) {
+    const isKablo = n >= 212 && n <= 221;
+    return {
+      groupId: 'pano_enerji_priz',
+      groupTitle: getGroupTitle('pano_enerji_priz'),
+      defaultUnit: isKablo ? 'Mt.' : 'Ad.',
+    };
+  }
+
+  if ((n >= 174 && n <= 188) || n === 209 || (n >= 250 && n <= 258) || n === 805 || n === 816) {
+    return {
+      groupId: 'kabinet_saha_dolabi',
+      groupTitle: getGroupTitle('kabinet_saha_dolabi'),
+      defaultUnit: 'Ad.',
+    };
+  }
+
+  if ((n >= 222 && n <= 228) || (n >= 415 && n <= 631)) {
+    return {
+      groupId: 'fo_patchcord_ulink',
+      groupTitle: getGroupTitle('fo_patchcord_ulink'),
+      defaultUnit: 'Ad.',
+    };
+  }
+
+  if ((n >= 229 && n <= 249) || n === 259 || (n >= 269 && n <= 281) || (n >= 807 && n <= 815)) {
+    return {
+      groupId: 'fo_ek_splitter_kutu',
+      groupTitle: getGroupTitle('fo_ek_splitter_kutu'),
+      defaultUnit: 'Ad.',
+    };
+  }
+
+  if ((n >= 260 && n <= 268) || (n >= 282 && n <= 414) || (n >= 632 && n <= 641)) {
+    const isMetre = n >= 260 && n <= 268;
+    return {
+      groupId: 'obk_bina_kablo',
+      groupTitle: getGroupTitle('obk_bina_kablo'),
+      defaultUnit: isMetre ? 'Mt.' : 'Ad.',
+    };
+  }
+
+  if (n >= 642 && n <= 677) {
+    return {
+      groupId: 'fo_anahat_kablo',
+      groupTitle: getGroupTitle('fo_anahat_kablo'),
+      defaultUnit: 'Mt.',
+    };
+  }
+
+  if (n >= 680 && n <= 771) {
+    return {
+      groupId: 'bakir_anahat_kablo',
+      groupTitle: getGroupTitle('bakir_anahat_kablo'),
+      defaultUnit: 'Mt.',
+    };
+  }
+
+  if (n >= 785 && n <= 792) {
+    return {
+      groupId: 'donanim_kkd',
+      groupTitle: getGroupTitle('donanim_kkd'),
+      defaultUnit: 'Ad.',
+    };
+  }
+
+  if (n >= 797 && n <= 802) {
+    return {
+      groupId: 'camper_teli',
+      groupTitle: getGroupTitle('camper_teli'),
+      defaultUnit: 'Mt.',
+    };
+  }
+
+  const lower = ad.toLowerCase();
+  const unit = lower.includes('kablo') || lower.includes('boru') || lower.includes('kanal') ? 'Mt.' : 'Ad.';
+  return {
+    groupId: 'fo_ek_splitter_kutu',
+    groupTitle: getGroupTitle('fo_ek_splitter_kutu'),
+    defaultUnit: unit,
+  };
+}
+
 export function parseJobData(): JobItem[] {
   const lines = JOB_DATA_RAW.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const jobs: JobItem[] = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(';');
     if (cols.length >= 3) {
-      jobs.push({ poz: cols[0].trim(), desc: cols[1].trim(), unit: cols[2].trim() });
+      const poz = cols[0].trim();
+      const desc = cols[1].trim();
+      const unit = cols[2].trim();
+      const catCode = poz.split('.')[0];
+      jobs.push({
+        poz,
+        desc,
+        unit,
+        categoryCode: catCode,
+        categoryTitle: JOB_CATEGORY_TITLES[catCode] || 'Genel Saha İşçilikleri',
+      });
     }
   }
   return jobs;
@@ -885,11 +1185,384 @@ export function parseMalzemeData(): MalzemeItem[] {
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(';');
     if (cols.length >= 2) {
-      malzemeler.push({ kod: cols[0].trim(), ad: cols[1].trim() });
+      const kod = cols[0].trim();
+      const ad = cols[1].trim();
+      const meta = classifyMalzeme(kod, ad);
+      malzemeler.push({
+        kod,
+        ad,
+        groupId: meta.groupId,
+        groupTitle: meta.groupTitle,
+        defaultUnit: meta.defaultUnit,
+      });
     }
   }
-  return malzemeler;
+  // Sort numerically by material poz code so 1, 2, 3... come in logical order
+  return malzemeler.sort((a, b) => {
+    const na = parseInt(a.kod, 10);
+    const nb = parseInt(b.kod, 10);
+    if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+    return a.kod.localeCompare(b.kod);
+  });
 }
 
 export const JOB_ITEMS: JobItem[] = parseJobData();
 export const MALZEME_ITEMS: MalzemeItem[] = parseMalzemeData();
+
+export interface JobMaterialMappingResult {
+  jobPoz: string;
+  jobCategoryTitle: string;
+  helperNote: string;
+  recommendedGroups: MalzemeGroup[];
+  priorityCodes: string[];
+  materials: MalzemeItem[];
+}
+
+function rangeCodes(start: number, end: number): string[] {
+  const arr: string[] = [];
+  for (let i = start; i <= end; i++) {
+    arr.push(String(i));
+  }
+  return arr;
+}
+
+/**
+ * Seçilen işçilik pozuna (1.1 - 11.13) göre uygun malzeme gruplarını ve
+ * öncelikli malzemeleri otomatik olarak döndürür.
+ */
+export function getRecommendedMaterialsForJob(iscilikPoz: string): JobMaterialMappingResult {
+  const cleanPoz = iscilikPoz.trim().toLowerCase();
+  const basePoz = cleanPoz.replace(/[dhmgybk]+$/i, ''); // örn: "2.1d" -> "2.1", "10.1g" -> "10.1"
+  const catCode = cleanPoz.split('.')[0];
+  const jobCategoryTitle = JOB_CATEGORY_TITLES[catCode] || 'Genel Saha İmalatı';
+
+  let groupIds: string[] = [];
+  let priorityCodes: string[] = [];
+  let helperNote = '';
+
+  // 1. GRUP: Direk, Lente, Fider ve Ağaç Budama (1.1 - 1.5)
+  if (basePoz === '1.1') {
+    groupIds = ['direk_lente', 'kazi_kaplama_beton'];
+    priorityCodes = ['56', '57', '58', '207', '50'];
+    helperNote = 'Direk dikimi/demontajı için Ağaç Telefon Direkleri (7-8-9 Mt), İstavroz Demiri ve Beton malzemeleri listelendi.';
+  } else if (basePoz === '1.2') {
+    groupIds = ['direk_lente', 'topraklama', 'kazi_kaplama_beton'];
+    priorityCodes = ['207', '132', '50', '56', '57', '58'];
+    helperNote = 'Lente yapımı/demontajı için İstavroz Demiri, Bakır Tel ve sabitleme malzemeleri listelendi.';
+  } else if (basePoz === '1.3' || basePoz === '1.4') {
+    groupIds = ['spiral_galvaniz_boru', 'kablo_tavasi_kanali', 'hdpe_boru'];
+    priorityCodes = [...rangeCodes(81, 89), ...rangeCodes(69, 80), ...rangeCodes(90, 116)];
+    helperNote = 'Direğe/duvara veya abone tesisine fider çıkılması için Galvanizli Borular ve Çelik/Plastik Spiral Borular listelendi.';
+  } else if (basePoz === '1.5') {
+    groupIds = ['donanim_kkd', 'direk_lente'];
+    priorityCodes = ['790', '791', '789', '56', '57', '58'];
+    helperNote = 'Ağaç budama işlemi işçilik ağırlıklı olup koruyucu donanım ve havai hat malzemeleri listelenmiştir.';
+  }
+
+  // 2. GRUP: Kablo Çekimi, Boru, Kanal ve Tava İşleri (2.1 - 2.11)
+  else if (basePoz === '2.1') {
+    groupIds = ['fo_anahat_kablo', 'obk_bina_kablo', 'bakir_anahat_kablo', 'direk_lente'];
+    priorityCodes = [...rangeCodes(642, 647), ...rangeCodes(260, 264), ...rangeCodes(752, 771), ...rangeCodes(680, 705)];
+    helperNote = 'Havai güzergahta (direkte/blokta) çekime uygun Havai F/O Kablolar (FO-H), Askı Telli OBK ve Bakır Kablolar listelendi.';
+  } else if (basePoz === '2.2') {
+    groupIds = ['obk_bina_kablo', 'bakir_anahat_kablo', 'fo_anahat_kablo', 'pano_enerji_priz'];
+    priorityCodes = [...rangeCodes(260, 268), ...rangeCodes(752, 771), ...rangeCodes(642, 647)];
+    helperNote = 'Bina dış yüzeyinden/bloktan kablo çekimi için OBK, Riser, Abone ve Anahat Kabloları listelendi.';
+  } else if (basePoz === '2.3' || basePoz === '2.5') {
+    groupIds = ['fo_anahat_kablo', 'bakir_anahat_kablo', 'pano_enerji_priz', 'obk_bina_kablo'];
+    priorityCodes = [...rangeCodes(648, 677), ...rangeCodes(680, 751), ...rangeCodes(212, 221)];
+    helperNote = 'Yeraltı ve açık kanal güzergahına uygun Yeraltı F/O Kablolar (FO-Y/FO-M), Bakır Anahat Kabloları ve Enerji Kabloları listelendi.';
+  } else if (basePoz === '2.4') {
+    groupIds = ['fo_anahat_kablo', 'hdpe_boru', 'obk_bina_kablo'];
+    priorityCodes = [...rangeCodes(648, 677), ...rangeCodes(642, 647), '1', '3', '5', '7', '12', '13', '20', '21'];
+    helperNote = 'Cable Jet (üfleme) ile HDPE/ÇTB içerisinden çekime uygun Fiber Optik Kablolar (FO-Y, FO-M, FO-NM) listelendi.';
+  } else if (basePoz === '2.6') {
+    groupIds = ['hdpe_boru', 'tika_malzemesi', 'menhol_ek_odasi'];
+    priorityCodes = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '53', '54', '55'];
+    helperNote = 'Gözlerin ve güzergahın tespiti kapsamında HDPE boru, göz çoklayıcı ve göz tıkama malzemeleri listelendi.';
+  } else if (basePoz === '2.7') {
+    groupIds = ['obk_bina_kablo', 'fo_patchcord_ulink', 'pano_enerji_priz', 'bakir_anahat_kablo', 'fo_anahat_kablo'];
+    priorityCodes = [...rangeCodes(260, 268), ...rangeCodes(282, 318), ...rangeCodes(212, 228)];
+    helperNote = 'Kablo kanalı veya tavasından çekime uygun OBK, Riser, K-OBK, CAT6, Enerji ve Bakır Kablolar listelendi.';
+  } else if (basePoz === '2.8') {
+    groupIds = ['spiral_galvaniz_boru', 'hdpe_boru'];
+    priorityCodes = [...rangeCodes(69, 80), ...rangeCodes(90, 116), '9', '10', '11', '12', '13', '20', '21'];
+    helperNote = 'ÇTB veya Spiral Boru çekimi için Çelik, İzoleli Çelik, Plastik, Halojen Free Spiral Borular ve Çoklayıcılar listelendi.';
+  } else if (basePoz === '2.9') {
+    groupIds = ['kablo_tavasi_kanali', 'spiral_galvaniz_boru'];
+    priorityCodes = [...rangeCodes(143, 155)];
+    helperNote = 'Kablo kanalı çekimi için 12x12 mm - 120x60 mm arası tüm Kablo Kanalları listelendi.';
+  } else if (basePoz === '2.10') {
+    groupIds = ['kablo_tavasi_kanali'];
+    priorityCodes = [...rangeCodes(117, 129)];
+    helperNote = 'Kablo tavası ve merdiveni montajı için 5 cm - 60 cm arası Kablo Tavaları ve Kablo Merdivenleri listelendi.';
+  } else if (basePoz === '2.11') {
+    groupIds = ['spiral_galvaniz_boru', 'kablo_tavasi_kanali'];
+    priorityCodes = [...rangeCodes(69, 80), ...rangeCodes(90, 116), ...rangeCodes(143, 155)];
+    helperNote = 'Bina dış yüzeyinden çatıya montaj için Spiral Borular ve Kablo Kanalları listelendi.';
+  }
+
+  // 3. GRUP: Bakır & Enerji Ek, Terminasyon ve Repartitör (3.1 - 3.7)
+  else if (basePoz === '3.1') {
+    groupIds = ['bakir_ek_modul', 'camper_teli'];
+    priorityCodes = ['61', '62', '59', '60'];
+    helperNote = 'İletkenlerin eklenmesi için Küçük/Büyük Konnektörler (0.4-0.9) ve 10\'luk Kesmeli/Kesmesiz Modüller listelendi.';
+  } else if (basePoz === '3.2') {
+    groupIds = ['bakir_ek_modul', 'topraklama'];
+    priorityCodes = ['64', '65', '66', '67', '68', '189'];
+    helperNote = 'Dış kılıf ek kapama için BEKT A/B/C Ek Kitleri, Çatal Ek Kiti, Topraklama Kiti ve Ek Kutuları listelendi.';
+  } else if (basePoz === '3.3') {
+    groupIds = ['bakir_ek_modul', 'pano_enerji_priz'];
+    priorityCodes = ['59', '60', '193', '189', '190', '191', '192', '165', '166'];
+    helperNote = '10\'luk terminasyon yapımı için 10\'luk Kesmeli/Kesmesiz Modüller, Modül Çatısı ve Dağıtım Kutuları listelendi.';
+  } else if (basePoz === '3.4' || basePoz === '3.5') {
+    groupIds = ['camper_teli', 'bakir_ek_modul'];
+    priorityCodes = ['797', '798', '799', '800', '801', '802', '59', '60', '193'];
+    helperNote = 'Repartitör dizisi ve camper teli işlemleri için Camper Telleri ve 10\'luk Modül/Çatı malzemeleri listelendi.';
+  } else if (basePoz === '3.6') {
+    groupIds = ['pano_enerji_priz'];
+    priorityCodes = ['203', '204', '205', '206', ...rangeCodes(212, 221)];
+    helperNote = 'AG reçineli ve ısı büzüşmeli ek mufu ile ek kapama için AG Ek Mufları (203-206) ve Enerji Kabloları listelendi.';
+  } else if (basePoz === '3.7') {
+    groupIds = ['pano_enerji_priz', 'topraklama'];
+    priorityCodes = ['52', '170', '171', '172', '173', '167', '168', '169', ...rangeCodes(212, 221)];
+    helperNote = 'Enerji kablosu terminasyonu için Rak Pabucu, Otomatik Sigorta, Koruma Röleleri, Sac Pano ve Enerji Kabloları listelendi.';
+  }
+
+  // 4. GRUP: Fiber Ek Yapımı veya Terminasyonu (4.1)
+  else if (basePoz === '4.1') {
+    groupIds = ['fo_ek_splitter_kutu', 'fo_patchcord_ulink', 'obk_bina_kablo', 'kabinet_saha_dolabi'];
+    priorityCodes = [
+      '229', '230', '231', '232', '233',
+      ...rangeCodes(234, 249),
+      '259', ...rangeCodes(270, 281),
+      ...rangeCodes(807, 815),
+    ];
+    helperNote = 'Fiber ek ve terminasyon için F/O Ek Kutuları, Optik Bölücüler (OB Splitter), OFDK/OFDP/OFSK Kutular ve Patchcordlar listelendi.';
+  }
+
+  // 5. GRUP: Kabin, Saha Dolabı, Kutu ve Pano Montajı (5.1 - 5.7)
+  else if (basePoz === '5.1') {
+    groupIds = ['kabinet_saha_dolabi', 'menhol_ek_odasi', 'fo_ek_splitter_kutu', 'topraklama'];
+    priorityCodes = ['41', '187', '188', '209', '256', '257', '258', '805', '278', '279'];
+    helperNote = 'Harici tip kabin montajı için FTTx Kabin Beton Kaidesi, Saha Dolapları (600/2400), OFSD Kabinler ve Harici OFDK listelendi.';
+  } else if (basePoz === '5.2') {
+    groupIds = ['fo_ek_splitter_kutu', 'bakir_ek_modul', 'kabinet_saha_dolabi', 'pano_enerji_priz'];
+    priorityCodes = [
+      ...rangeCodes(189, 193),
+      ...rangeCodes(174, 186),
+      ...rangeCodes(242, 258),
+      '259', ...rangeCodes(269, 281),
+      ...rangeCodes(807, 816),
+      '167', '168', '169',
+    ];
+    helperNote = 'Kutu veya dahili tip kabin montajı için BDDK/BİDK Kutular, OFDK/OFDP/OFSK Kutular, 19" Kabinetler ve Sac Panolar listelendi.';
+  } else if (basePoz === '5.3') {
+    groupIds = ['kabinet_saha_dolabi', 'pano_enerji_priz', 'fo_ek_splitter_kutu', 'bakir_ek_modul', 'fo_patchcord_ulink'];
+    priorityCodes = [
+      ...rangeCodes(170, 186),
+      '59', '60', '193',
+      ...rangeCodes(234, 249),
+      ...rangeCodes(807, 816),
+      ...rangeCodes(156, 166),
+    ];
+    helperNote = 'Kabin/pano içerisine ekipman montajı için Sigorta, Röle, Raf, Fan Modülü, Grup Priz, Splitter ve Modüller listelendi.';
+  } else if (basePoz === '5.4' || basePoz === '5.5') {
+    groupIds = ['pano_enerji_priz', 'topraklama', 'spiral_galvaniz_boru'];
+    priorityCodes = ['167', '168', '169', '170', '171', '172', '173', '52', ...rangeCodes(212, 221), ...rangeCodes(203, 206), ...rangeCodes(130, 142)];
+    helperNote = 'Kabin enerji bağlantı işleri için Sac Pano, Otomatik Sigorta, Yangın/Kaçak Akım Rölesi, Enerji Kablosu ve Topraklama listelendi.';
+  } else if (basePoz === '5.6' || basePoz === '5.7') {
+    groupIds = ['pano_enerji_priz', 'kabinet_saha_dolabi', 'kazi_kaplama_beton'];
+    priorityCodes = ['167', '168', '170', '173', ...rangeCodes(156, 166), ...rangeCodes(212, 221), '50'];
+    helperNote = 'Ankesör / Turna kabin ve makine montajı için enerji, pano, priz ve sabitleme malzemeleri listelendi.';
+  }
+
+  // 6. GRUP: Bina İçi ve Daire İçi OBK Kurulum İşleri (6.1 - 6.4)
+  else if (basePoz === '6.1' || basePoz === '6.3') {
+    groupIds = ['obk_bina_kablo', 'fo_ek_splitter_kutu', 'pano_enerji_priz', 'fo_patchcord_ulink'];
+    priorityCodes = [
+      ...rangeCodes(260, 269),
+      '259', '270', '271', ...rangeCodes(272, 276), '815',
+      ...rangeCodes(282, 348),
+      ...rangeCodes(156, 166),
+    ];
+    helperNote = 'Bina içi mevcut hattan ve daire içine OBK çekimi için 1x1/1x2 OBK, K-OBK, Riser Kablo, OFSK-P ve ONTT listelendi.';
+  } else if (basePoz === '6.2' || basePoz === '6.4') {
+    groupIds = ['obk_bina_kablo', 'kablo_tavasi_kanali', 'spiral_galvaniz_boru', 'fo_ek_splitter_kutu', 'pano_enerji_priz'];
+    priorityCodes = [
+      ...rangeCodes(260, 269),
+      ...rangeCodes(143, 150),
+      ...rangeCodes(103, 116),
+      '259', '270', '271', '815',
+      ...rangeCodes(282, 329),
+    ];
+    helperNote = 'Koruyucu hat yapılarak OBK çekilmesi için OBK/K-OBK Kablolar, Kablo Kanalları (12x12-60x60) ve Spiral Borular listelendi.';
+  }
+
+  // 7. GRUP: Camper Teli, Şablon ve FWA Kurulumu (7.1 - 7.3)
+  else if (basePoz === '7.1') {
+    groupIds = ['camper_teli', 'bakir_ek_modul'];
+    priorityCodes = ['797', '798', '799', '800', '801', '802', '59', '60'];
+    helperNote = 'Camper teli montajı/demontajı için Mavi-Beyaz, Turuncu-Beyaz, nDSL Yeşil-Beyaz Camper Telleri ve 10\'luk Modüller listelendi.';
+  } else if (basePoz === '7.2') {
+    groupIds = ['kabinet_saha_dolabi', 'bakir_ek_modul', 'fo_ek_splitter_kutu'];
+    priorityCodes = ['187', '188', '189', '190', '191', '192', '256', '258', '805'];
+    helperNote = 'Dolap / kutu numarası şablonlama işlemi için ilgili Saha Dolapları ve Dağıtım Kutuları listelendi.';
+  } else if (basePoz === '7.3') {
+    groupIds = ['fo_patchcord_ulink', 'pano_enerji_priz', 'fo_ek_splitter_kutu', 'kablo_tavasi_kanali', 'spiral_galvaniz_boru'];
+    priorityCodes = [...rangeCodes(222, 228), ...rangeCodes(157, 166), '815', ...rangeCodes(143, 147), ...rangeCodes(103, 112)];
+    helperNote = 'FWA kurulumu için CAT6 Patch/Data Kabloları, Data/Topraklı Prizler, RJ45 Konnektör ve Kanal/Spiral malzemeleri listelendi.';
+  }
+
+  // 8. GRUP: Topraklama, Göz Tıkama ve Aktivasyon İşleri (8.1 - 8.13)
+  else if (basePoz === '8.1' || basePoz === '8.2') {
+    groupIds = ['topraklama', 'pano_enerji_priz'];
+    priorityCodes = ['130', '131', '132', ...rangeCodes(133, 142), '68', '52'];
+    helperNote = 'Topraklama yapımı için Topraklama Levhası, Topraklama Çubuğu (150cm), Bakır Tel, NYY/Çıplak Bakır İletkenler ve Topraklama Kiti listelendi.';
+  } else if (basePoz === '8.3') {
+    groupIds = ['tika_malzemesi', 'hdpe_boru'];
+    priorityCodes = ['53', '54', '55', '12', '13', '14'];
+    helperNote = 'Menhol gözünün kapatılması/tıkama işlemi için Protolin, Dolu Göz ve Boş Göz Mekanik Tıkama Malzemeleri listelendi.';
+  } else if (basePoz === '8.8') {
+    groupIds = ['hdpe_boru', 'tika_malzemesi', 'kazi_kaplama_beton'];
+    priorityCodes = ['14', '1', '2', '3', '4', '5', '6', '7', '8', '53', '54', '55', '806'];
+    helperNote = 'Göçük tespiti ve onarımı kapsamında HDPE Tamir Manşonu, HDPE Borular ve Dolgu/Tıkama malzemeleri listelendi.';
+  } else if (catCode === '8') {
+    groupIds = ['donanim_kkd', 'hdpe_boru', 'fo_ek_splitter_kutu', 'bakir_ek_modul'];
+    priorityCodes = ['785', '786', '788', '789', '790', '791', '14'];
+    helperNote = 'Aktivasyon, ruhsat ve refakat işlemleri için ekipman/ölçü aletleri ve yardımcı saha malzemeleri listelendi.';
+  }
+
+  // 9. GRUP: Menhol ve Ek Odası Yapım / Bakım İşleri (9.1 - 9.11)
+  else if (basePoz === '9.1') {
+    groupIds = ['menhol_ek_odasi', 'kazi_kaplama_beton', 'tika_malzemesi'];
+    priorityCodes = ['23', '24', '31', '32', '33', '41', '25', '26', '27', '28', '50'];
+    helperNote = 'Menhol / Ek Odası / Kaide montajı için Tip-1/Tip-2 Prefabrik Beton Menhol, Kompozit Ek Odaları (H41/H65/H75) ve Beton Kaide listelendi.';
+  } else if (basePoz === '9.2' || basePoz === '9.3' || basePoz === '9.6' || basePoz === '9.7' || basePoz === '9.8') {
+    groupIds = ['menhol_ek_odasi', 'kazi_kaplama_beton', 'tika_malzemesi'];
+    priorityCodes = ['50', '25', '26', '27', '28', '40', '23', '24', '806'];
+    helperNote = 'Briketle menhol/ek odası ve kubbe yapımı için C20/25 Beton, Kompozit Menhol/Ek Odası Kapağı, Çerçevesi ve Yükseltme Parçası listelendi.';
+  } else if (basePoz === '9.4' || basePoz === '9.5') {
+    groupIds = ['menhol_ek_odasi', 'kazi_kaplama_beton'];
+    priorityCodes = ['40', '25', '26', '27', '28', '50', '51'];
+    helperNote = 'Menhol yükseltme/alçaltma ve kapak değişimi için Prefabrik Yükseltme Parçası, Kompozit Menhol/Ek Odası Kapağı & Çerçevesi listelendi.';
+  } else if (catCode === '9') {
+    groupIds = ['menhol_ek_odasi', 'tika_malzemesi', 'kazi_kaplama_beton'];
+    priorityCodes = ['25', '26', '27', '28', '40', '23', '24', '31', '32', '33'];
+    helperNote = 'Menhol ve güzergah tespiti için Menhol/Ek Odası kapak, çerçeve ve yapı elemanları listelendi.';
+  }
+
+  // 10. GRUP: HDPE Boru, Galvanizli Boru, Kazı, Dolgu, Kaplama ve Beton İşleri (10.1 - 10.11)
+  else if (basePoz === '10.1') {
+    groupIds = ['hdpe_boru', 'tika_malzemesi'];
+    priorityCodes = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '20', '21'];
+    helperNote = 'HDPE boru ve PE göz çoklayıcı döşenmesi için Çift Cidarlı HDPE Borular (50/75/90/110), Manşonlar, Göz Çoklayıcılar ve Mikroborular listelendi.';
+  } else if (basePoz === '10.2') {
+    groupIds = ['spiral_galvaniz_boru'];
+    priorityCodes = [...rangeCodes(81, 89)];
+    helperNote = 'Dikişli galvanizli boru montajı için 1/2" - 4" arası tüm Galvanizli Borular listelendi.';
+  } else if (basePoz === '10.3' || basePoz === '10.4') {
+    groupIds = ['hdpe_boru', 'kazi_kaplama_beton', 'spiral_galvaniz_boru'];
+    priorityCodes = ['1', '2', '3', '5', '7', '9', '10', '11', '12', '13', '806', '50', '51', ...rangeCodes(81, 89)];
+    helperNote = 'Tranşe ve fider kazısı kapsamında döşenen HDPE Borular, Galvanizli Borular, Dolgu/Sargı, Beton ve Kaplama malzemeleri listelendi.';
+  } else if (basePoz === '10.5' || basePoz === '10.6' || basePoz === '10.11') {
+    groupIds = ['kazi_kaplama_beton', 'hdpe_boru'];
+    priorityCodes = ['806', '50', '51'];
+    helperNote = 'Boru sargısı, özel dolgu ve PMT dolgu işlemleri için Dolgu ve Sargı Malzemesi (806), C20/25 Beton ve Asfalt listelendi.';
+  } else if (basePoz === '10.7') {
+    groupIds = ['kazi_kaplama_beton'];
+    priorityCodes = ['48', '50'];
+    helperNote = 'Beton bordür döşenmesi/sökülmesi için Beton Bordür (48) ve C20/25 Beton (50) malzemeleri listelendi.';
+  } else if (basePoz === '10.8') {
+    groupIds = ['kazi_kaplama_beton'];
+    priorityCodes = ['42', '43', '44', '45', '46', '47', '48', '49', '50', '51'];
+    helperNote = 'Döşeme kaplaması için Andezit, Granit, Bazalt, Beton Parke, Mermer, Karosiman, Bordür ve Soğuk Asfalt listelendi.';
+  } else if (basePoz === '10.9') {
+    groupIds = ['kazi_kaplama_beton'];
+    priorityCodes = ['50', '806', '48'];
+    helperNote = 'Beton atılması/demontajı için C20/25 Beton (50) ve yardımcı kaplama malzemeleri listelendi.';
+  } else if (basePoz === '10.10') {
+    groupIds = ['kazi_kaplama_beton'];
+    priorityCodes = ['51', '806', '50'];
+    helperNote = 'Tranşe üzeri asfalt işlemleri için Soğuk Asfalt (51), Dolgu Malzemesi (806) ve Beton listelendi.';
+  }
+
+  // 11. GRUP: Şebeke İyileştirme, Bakım ve Arıza Tespiti (11.1 - 11.13)
+  else if (basePoz === '11.1' || basePoz === '11.2') {
+    groupIds = ['fo_anahat_kablo', 'obk_bina_kablo', 'bakir_anahat_kablo', 'spiral_galvaniz_boru', 'kablo_tavasi_kanali', 'bakir_ek_modul'];
+    priorityCodes = [...rangeCodes(642, 647), ...rangeCodes(260, 264), ...rangeCodes(752, 771), '64', '65', '66'];
+    helperNote = 'Direkli ve blok işlemeli güzergahta kablo iyileştirilmesi için Havai/Blok Kablolar, Koruyucu Boru/Kanal ve Ek Malzemeleri listelendi.';
+  } else if (basePoz === '11.3') {
+    groupIds = ['bakir_ek_modul', 'fo_ek_splitter_kutu'];
+    priorityCodes = ['189', '190', '191', '192', '59', '60', '242', '243', '244', '259', ...rangeCodes(270, 281)];
+    helperNote = 'Kutu iyileştirilmesi için BDDK/BİDK Bakır Dağıtım Kutuları, OFDK/OFSK Fiber Kutular ve 10\'luk Modüller listelendi.';
+  } else if (basePoz === '11.4') {
+    groupIds = ['kabinet_saha_dolabi', 'bakir_ek_modul', 'fo_ek_splitter_kutu', 'camper_teli', 'menhol_ek_odasi'];
+    priorityCodes = ['187', '188', '193', '209', '41', '59', '60', '256', '257', '258', '805', '797', '798'];
+    helperNote = 'Saha dolabı ve FTTx kabin iyileştirilmesi için Saha Dolabı/Çatısı, OFSD Kabinler, Modüller ve Camper Telleri listelendi.';
+  } else if (basePoz === '11.5' || basePoz === '11.6' || basePoz === '11.7') {
+    groupIds = ['bakir_ek_modul', 'camper_teli', 'pano_enerji_priz'];
+    priorityCodes = ['59', '60', '189', '190', '191', '192', '61', '62', '797', '798'];
+    helperNote = '10\'luk terminal ve ankastre kutusu iyileştirilmesi için 10\'luk Kesmeli/Kesmesiz Modüller, BİDK/BDDK Kutular ve Konnektörler listelendi.';
+  } else if (basePoz === '11.8' || basePoz === '11.9' || basePoz === '11.10') {
+    groupIds = ['direk_lente', 'kazi_kaplama_beton'];
+    priorityCodes = ['56', '57', '58', '207', '50'];
+    helperNote = 'Direk iyileştirilmesi ve bakımı için Ağaç Telefon Direkleri, İstavroz Demiri ve Beton malzemeleri listelendi.';
+  } else if (basePoz === '11.11') {
+    groupIds = ['menhol_ek_odasi', 'tika_malzemesi'];
+    priorityCodes = ['53', '54', '55', '25', '26', '27', '28', '40'];
+    helperNote = 'Menhol/Ek odası temizlenmesi kapsamında Göz Tıkama Malzemeleri ve Menhol Kapak/Çerçeve elemanları listelendi.';
+  } else if (basePoz === '11.12') {
+    groupIds = ['bakir_ek_modul', 'fo_ek_splitter_kutu', 'hdpe_boru', 'donanim_kkd'];
+    priorityCodes = ['61', '62', '64', '65', '66', '229', '230', '14', '788'];
+    helperNote = 'Kablo / pasif arıza ve hasar tespiti için Ek Kutuları, Konnektörler, HDPE Tamir Manşonu ve Ölçü Aleti listelendi.';
+  } else if (basePoz === '11.13') {
+    groupIds = ['fo_ek_splitter_kutu', 'fo_patchcord_ulink', 'pano_enerji_priz', 'obk_bina_kablo'];
+    priorityCodes = ['815', ...rangeCodes(222, 228), '165', '166', '259', '286', '287', '288'];
+    helperNote = 'Müşteri modeminin/ONTT değiştirilmesi için ONTT (815), CAT6 Patch Cord, RJ45/RJ11 Konnektör ve K-OBK abone kabloları listelendi.';
+  } else {
+    // Genel varsayılan
+    groupIds = MALZEME_GROUPS.map(g => g.id);
+    priorityCodes = [];
+    helperNote = 'Tüm saha malzeme grupları seçime hazır olarak listelendi.';
+  }
+
+  const recommendedGroups = groupIds
+    .map(id => MALZEME_GROUPS.find(g => g.id === id))
+    .filter((g): g is MalzemeGroup => Boolean(g));
+
+  const prioritySet = new Set(priorityCodes);
+  const groupSet = new Set(groupIds);
+  const groupOrderMap = new Map<string, number>();
+  groupIds.forEach((id, idx) => groupOrderMap.set(id, idx));
+
+  const priorityOrderMap = new Map<string, number>();
+  priorityCodes.forEach((c, idx) => priorityOrderMap.set(c, idx));
+
+  const materials = MALZEME_ITEMS.filter(
+    m => groupSet.has(m.groupId) || prioritySet.has(m.kod)
+  ).sort((a, b) => {
+    const aPri = priorityOrderMap.has(a.kod) ? priorityOrderMap.get(a.kod)! : 99999;
+    const bPri = priorityOrderMap.has(b.kod) ? priorityOrderMap.get(b.kod)! : 99999;
+    if (aPri !== bPri) return aPri - bPri;
+
+    const aGrp = groupOrderMap.has(a.groupId) ? groupOrderMap.get(a.groupId)! : 999;
+    const bGrp = groupOrderMap.has(b.groupId) ? groupOrderMap.get(b.groupId)! : 999;
+    if (aGrp !== bGrp) return aGrp - bGrp;
+
+    const na = parseInt(a.kod, 10);
+    const nb = parseInt(b.kod, 10);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.kod.localeCompare(b.kod);
+  });
+
+  return {
+    jobPoz: iscilikPoz,
+    jobCategoryTitle,
+    helperNote,
+    recommendedGroups,
+    priorityCodes,
+    materials,
+  };
+}
+

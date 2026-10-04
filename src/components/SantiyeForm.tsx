@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Building2, 
   MapPin, 
@@ -7,7 +7,6 @@ import {
   Trash2, 
   Check, 
   Copy, 
-  PlusCircle, 
   Navigation, 
   ExternalLink,
   Sparkles,
@@ -17,11 +16,27 @@ import {
   Layers,
   ArrowDown,
   ArrowRight,
-  LayoutDashboard
+  LayoutDashboard,
+  Filter,
+  Star,
+  PackageCheck,
+  FolderKanban,
+  X,
+  Lock,
+  ShieldCheck,
+  Tag,
+  Loader2
 } from 'lucide-react';
-import { JOB_ITEMS, MALZEME_ITEMS } from '../data/jobAndMalzemeData';
-import { JobItem, LocationData, SantiyeEntry, StagedPozLine, User } from '../types';
+import { 
+  JOB_ITEMS, 
+  MALZEME_ITEMS, 
+  MALZEME_GROUPS, 
+  JOB_CATEGORY_TITLES,
+  getRecommendedMaterialsForJob 
+} from '../data/jobAndMalzemeData';
+import { JobItem, LocationData, MalzemeItem, ProjeTipi, SantiyeEntry, StagedPozLine, User } from '../types';
 import CameraCaptureModal from './CameraCaptureModal';
+import { compressImage, getImageSizeDisplay, formatBytes } from '../utils/imageCompressor';
 
 interface SantiyeFormProps {
   currentUser: User | null;
@@ -30,9 +45,36 @@ interface SantiyeFormProps {
   entriesCount?: number;
 }
 
+const PROJE_TIPLERI: { value: Exclude<ProjeTipi, ''>; label: string; badgeClass: string; activeClass: string }[] = [
+  {
+    value: 'Hasar',
+    label: 'Hasar',
+    badgeClass: 'bg-rose-100 text-rose-800 border-rose-300',
+    activeClass: 'bg-rose-600 text-white border-rose-600 shadow-xs'
+  },
+  {
+    value: 'Pasif',
+    label: 'Pasif',
+    badgeClass: 'bg-blue-100 text-blue-800 border-blue-300',
+    activeClass: 'bg-blue-600 text-white border-blue-600 shadow-xs'
+  },
+  {
+    value: 'Bakım',
+    label: 'Bakım',
+    badgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+    activeClass: 'bg-amber-500 text-slate-950 border-amber-500 shadow-xs'
+  }
+];
+
 export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, entriesCount }: SantiyeFormProps) {
+  const isSheff = Boolean(
+    currentUser?.username?.toLowerCase() === 'sheff' || currentUser?.isAdmin
+  );
+
   // Proje ve Lokasyon State
-  const [projeID, setProjeID] = useState('PRJ-2026-IST');
+  const [projeAdi, setProjeAdi] = useState('Moda Cad. FTTx Genişleme');
+  const [projeID, setProjeID] = useState(() => (isSheff ? 'PRJ-2026-IST' : 'Atanmadı'));
+  const [projeTipi, setProjeTipi] = useState<ProjeTipi>(() => (isSheff ? 'Pasif' : ''));
   const [santral, setSantral] = useState('Kadıköy Santral');
   const [saha, setSaha] = useState('SH-04 Modafen');
   const [kutu, setKutu] = useState('K-108A');
@@ -47,12 +89,32 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
     } else if (currentUser?.name) {
       setCreatedBy(currentUser.name);
     }
+    const userIsSheff = Boolean(
+      currentUser?.username?.toLowerCase() === 'sheff' || currentUser?.isAdmin
+    );
+    if (!userIsSheff) {
+      setProjeID('Atanmadı');
+      setProjeTipi('');
+    } else {
+      setProjeID(prev => (prev === 'Atanmadı' || !prev ? 'PRJ-2026-IST' : prev));
+      setProjeTipi(prev => (!prev ? 'Pasif' : prev));
+    }
   }, [currentUser]);
 
   // Fotoğraflar State (Öncesi / Sonrası)
   const [beforePhoto, setBeforePhoto] = useState<string>('https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80');
   const [afterPhoto, setAfterPhoto] = useState<string>('https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800&auto=format&fit=crop&q=80');
   const [cameraTarget, setCameraTarget] = useState<'before' | 'after' | null>(null);
+
+  // Fotoğraf Boyut ve Sıkıştırma State'leri (~1MB optimizasyonu)
+  const [isCompressingBefore, setIsCompressingBefore] = useState(false);
+  const [isCompressingAfter, setIsCompressingAfter] = useState(false);
+  const [beforePhotoInfo, setBeforePhotoInfo] = useState<{ sizeFormatted: string; originalFormatted?: string } | null>({
+    sizeFormatted: '820 KB (~1MB Optimize)'
+  });
+  const [afterPhotoInfo, setAfterPhotoInfo] = useState<{ sizeFormatted: string; originalFormatted?: string } | null>({
+    sizeFormatted: '790 KB (~1MB Optimize)'
+  });
 
   // GPS ve Lokasyon State
   const [location, setLocation] = useState<LocationData | null>({
@@ -94,16 +156,19 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
 
   // Giriş Satırı (İşçilik State)
   const [iscilikSearch, setIscilikSearch] = useState('');
+  const [activeJobCategory, setActiveJobCategory] = useState<string>('all');
   const [selectedJob, setSelectedJob] = useState<JobItem | null>(null);
   const [iscilikQty, setIscilikQty] = useState('');
   const [iscilikError, setIscilikError] = useState('');
   const [isIscilikDropdownOpen, setIsIscilikDropdownOpen] = useState(false);
 
-  // Giriş Satırı (Malzeme State)
+  // Giriş Satırı (Malzeme State & İşçiliğe Göre Gruplama)
   const [malzemeSearch, setMalzemeSearch] = useState('');
   const [selectedMalzemeler, setSelectedMalzemeler] = useState<string[]>([]);
   const [malzemeQty, setMalzemeQty] = useState('');
   const [malzemeUnit, setMalzemeUnit] = useState('Ad.');
+  const [malzemeViewMode, setMalzemeViewMode] = useState<'recommended' | 'all'>('recommended');
+  const [activeMalzemeGroup, setActiveMalzemeGroup] = useState<string>('all');
   const [isConfirmingClearStaged, setIsConfirmingClearStaged] = useState(false);
 
   const [notificationMsg, setNotificationMsg] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -119,16 +184,83 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
   };
 
   // Filter İşçilik
-  const filteredJobs = JOB_ITEMS.filter(item =>
-    item.poz.toLowerCase().includes(iscilikSearch.toLowerCase()) ||
-    item.desc.toLowerCase().includes(iscilikSearch.toLowerCase())
-  ).slice(0, 15);
+  const filteredJobs = useMemo(() => {
+    return JOB_ITEMS.filter(item => {
+      const matchesCat = activeJobCategory === 'all' || item.categoryCode === activeJobCategory;
+      const q = iscilikSearch.trim().toLowerCase();
+      const matchesQuery =
+        !q ||
+        item.poz.toLowerCase().includes(q) ||
+        item.desc.toLowerCase().includes(q);
+      return matchesCat && matchesQuery;
+    }).slice(0, 30);
+  }, [iscilikSearch, activeJobCategory]);
 
-  // Filter Malzemeler
-  const filteredMalzemeler = MALZEME_ITEMS.filter(m =>
-    m.kod.toLowerCase().includes(malzemeSearch.toLowerCase()) ||
-    m.ad.toLowerCase().includes(malzemeSearch.toLowerCase())
-  ).slice(0, 35);
+  // Seçilen işçiliğe göre önerilen malzeme grupları ve öncelikli malzemeler
+  const activeJobForMaterials = useMemo(() => {
+    if (selectedJob) return selectedJob;
+    const exact = JOB_ITEMS.find(j => j.poz.toLowerCase() === iscilikSearch.trim().toLowerCase());
+    return exact || null;
+  }, [selectedJob, iscilikSearch]);
+
+  const jobMaterialRecommendation = useMemo(() => {
+    if (!activeJobForMaterials) return null;
+    return getRecommendedMaterialsForJob(activeJobForMaterials.poz);
+  }, [activeJobForMaterials]);
+
+  const priorityCodeSet = useMemo(() => {
+    return new Set(jobMaterialRecommendation?.priorityCodes || []);
+  }, [jobMaterialRecommendation]);
+
+  // Gösterilecek malzeme grupları (Seçilen işçiliğe özel gruplar veya tüm gruplar)
+  const displayedMalzemeGroups = useMemo(() => {
+    if (activeJobForMaterials && malzemeViewMode === 'recommended' && jobMaterialRecommendation) {
+      return jobMaterialRecommendation.recommendedGroups;
+    }
+    return MALZEME_GROUPS;
+  }, [activeJobForMaterials, malzemeViewMode, jobMaterialRecommendation]);
+
+  // Seçilen işçiliğe, aktif malzeme grubuna ve arama kelimesine göre filtrelenmiş malzemeler
+  const filteredMalzemeler = useMemo(() => {
+    const q = malzemeSearch.trim().toLowerCase();
+    const basePool: MalzemeItem[] =
+      activeJobForMaterials && malzemeViewMode === 'recommended' && jobMaterialRecommendation
+        ? jobMaterialRecommendation.materials
+        : MALZEME_ITEMS;
+
+    return basePool.filter(m => {
+      if (activeMalzemeGroup === 'priority') {
+        if (!priorityCodeSet.has(m.kod)) return false;
+      } else if (activeMalzemeGroup !== 'all') {
+        if (m.groupId !== activeMalzemeGroup) return false;
+      }
+
+      if (!q) return true;
+      return (
+        m.kod.toLowerCase().includes(q) ||
+        m.ad.toLowerCase().includes(q) ||
+        m.groupTitle.toLowerCase().includes(q)
+      );
+    }).slice(0, 90);
+  }, [activeJobForMaterials, malzemeViewMode, jobMaterialRecommendation, activeMalzemeGroup, malzemeSearch, priorityCodeSet]);
+
+  // Malzemeleri grup başlıklarına göre grupla (UI'da düzenli grup görünümü için)
+  const groupedFilteredMalzemeler = useMemo(() => {
+    const map = new Map<string, { groupId: string; groupTitle: string; items: MalzemeItem[] }>();
+    filteredMalzemeler.forEach(item => {
+      const existing = map.get(item.groupId);
+      if (existing) {
+        existing.items.push(item);
+      } else {
+        map.set(item.groupId, {
+          groupId: item.groupId,
+          groupTitle: item.groupTitle,
+          items: [item],
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [filteredMalzemeler]);
 
   // Select İşçilik
   const handleSelectJob = (job: JobItem) => {
@@ -136,17 +268,23 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
     setIscilikSearch(job.poz);
     setIscilikError('');
     setIsIscilikDropdownOpen(false);
-    if (!malzemeUnit && job.unit) {
+    setMalzemeViewMode('recommended');
+    setActiveMalzemeGroup('all');
+    if (job.unit) {
       setMalzemeUnit(job.unit);
     }
   };
 
   // Toggle Malzeme
   const handleToggleMalzeme = (kod: string) => {
+    const malz = MALZEME_ITEMS.find(m => m.kod === kod);
     if (selectedMalzemeler.includes(kod)) {
       setSelectedMalzemeler(prev => prev.filter(k => k !== kod));
     } else {
       setSelectedMalzemeler(prev => [...prev, kod]);
+      if (malz?.defaultUnit) {
+        setMalzemeUnit(malz.defaultUnit);
+      }
     }
   };
 
@@ -162,21 +300,60 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
     }
   };
 
-  // Handle Photo Upload from file
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'before' | 'after') => {
+  // Handle Photo Upload from file with ~1MB compression
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'before' | 'after') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
+    const originalSizeStr = formatBytes(file.size);
+    if (target === 'before') {
+      setIsCompressingBefore(true);
+    } else {
+      setIsCompressingAfter(true);
+    }
+
+    try {
+      // Compress to ~1MB (target max 1024KB, max dimension 1920px Full HD)
+      const result = await compressImage(file, { maxSizeKb: 1024, maxDimension: 1920 });
       if (target === 'before') {
-        setBeforePhoto(dataUrl);
+        setBeforePhoto(result.dataUrl);
+        setBeforePhotoInfo({
+          sizeFormatted: result.sizeFormatted,
+          originalFormatted: originalSizeStr
+        });
+        showNotification(`📸 Öncesi fotoğrafı ~1MB boyutuna optimize edildi (${result.sizeFormatted})`, 'success');
       } else {
-        setAfterPhoto(dataUrl);
+        setAfterPhoto(result.dataUrl);
+        setAfterPhotoInfo({
+          sizeFormatted: result.sizeFormatted,
+          originalFormatted: originalSizeStr
+        });
+        showNotification(`📸 Sonrası fotoğrafı ~1MB boyutuna optimize edildi (${result.sizeFormatted})`, 'success');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error('Fotoğraf sıkıştırma hatası:', err);
+      // Fallback: standard FileReader
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        if (target === 'before') {
+          setBeforePhoto(dataUrl);
+          setBeforePhotoInfo({ sizeFormatted: formatBytes(file.size) });
+        } else {
+          setAfterPhoto(dataUrl);
+          setAfterPhotoInfo({ sizeFormatted: formatBytes(file.size) });
+        }
+      };
+      reader.readAsDataURL(file);
+      showNotification('⚠️ Fotoğraf yüklendi fakat sıkıştırma esnasında uyarı oluştu.', 'info');
+    } finally {
+      if (target === 'before') {
+        setIsCompressingBefore(false);
+      } else {
+        setIsCompressingAfter(false);
+      }
+      e.target.value = '';
+    }
   };
 
   // Get Current GPS Location
@@ -244,7 +421,7 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
       return;
     }
 
-    const currentJob = selectedJob || {
+    const currentJob = activeJobForMaterials || selectedJob || {
       poz: iscilikSearch.trim(),
       desc: 'Saha Özel İmalatı',
       unit: 'Ad.'
@@ -264,7 +441,7 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
           malzemePoz: kod,
           malzemeAdi: malz ? malz.ad : 'Malzeme',
           malzemeMiktar: malzemeQty || iscilikQty,
-          malzemeBirim: malzemeUnit || currentJob.unit
+          malzemeBirim: malzemeUnit || malz?.defaultUnit || currentJob.unit
         });
       });
     } else {
@@ -290,6 +467,8 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
     setIscilikQty('');
     setSelectedMalzemeler([]);
     setMalzemeQty('');
+    setMalzemeSearch('');
+    setActiveMalzemeGroup('all');
     setIscilikError('');
   };
 
@@ -313,10 +492,30 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
       return;
     }
 
+    if (!projeAdi.trim()) {
+      showNotification('⚠️ Lütfen Proje Adı bilgisini giriniz!', 'error');
+      return;
+    }
+
+    if (isSheff && !projeID.trim()) {
+      showNotification('⚠️ Sheff olarak lütfen Proje ID bilgisini giriniz!', 'error');
+      return;
+    }
+
+    if (isSheff && !projeTipi) {
+      showNotification('⚠️ Sheff olarak lütfen Proje Tipini (Hasar, Pasif, Bakım) seçiniz!', 'error');
+      return;
+    }
+
+    const finalProjeID = isSheff ? projeID.trim() : 'Atanmadı';
+    const finalProjeTipi: ProjeTipi = isSheff ? projeTipi : '';
+
     // Bir proje ID için öncesi ve sonrası için birer foto yeterlidir (yalnızca ilk poz satırına kaydedilir)
     const newEntries: Omit<SantiyeEntry, 'id' | 'createdAt' | 'syncStatus'>[] = stagedLines.map((line, index) => ({
       date,
-      projeID: projeID.trim(),
+      projeAdi: projeAdi.trim(),
+      projeID: finalProjeID,
+      projeTipi: finalProjeTipi,
       santral: santral.trim(),
       saha: saha.trim(),
       kutu: kutu.trim(),
@@ -406,26 +605,129 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
 
       <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
         {/* ADIM 1: PROJE VE LOKASYON BİLGİLERİ */}
-        <div className="p-3.5 sm:p-4 bg-slate-50/80 rounded-xl border border-slate-200">
-          <div className="flex items-center justify-between mb-2.5 sm:mb-3">
+        <div className="p-3.5 sm:p-4 bg-slate-50/80 rounded-xl border border-slate-200 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-xs font-bold text-blue-950 uppercase tracking-wider">
               <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">1</span>
               Proje & Saha Bilgileri
             </div>
-            <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium">Ortak Bilgiler</span>
+            <div className="flex items-center gap-2">
+              {isSheff ? (
+                <span className="text-[10px] sm:text-[11px] bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
+                  Sheff Yetkisi: Proje ID ve Proje Tipi (Hasar / Pasif / Bakım) Aktif
+                </span>
+              ) : (
+                <span className="text-[10px] sm:text-[11px] bg-blue-100 text-blue-900 border border-blue-200 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-blue-700" />
+                  Kablo Ekibi: Proje Adı girilebilir • Proje ID ve Tipi Sheff tarafından atanır
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Proje ID</label>
+          {/* Üst Satır: Proje Adı, Proje ID (Sadece Sheff), Proje Tipi (Sadece Sheff) */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 sm:gap-3 bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs">
+            {/* Proje Adı - Kablo Ekipleri ve Sheff Girebilir */}
+            <div className="md:col-span-5">
+              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Tag className="w-3.5 h-3.5 text-blue-600" />
+                  Proje Adı
+                </span>
+                <span className="text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded">
+                  Kablo Ekibi / Sheff
+                </span>
+              </label>
               <input
                 type="text"
-                value={projeID}
-                onChange={e => setProjeID(e.target.value)}
-                placeholder="Örn: PRJ-2026-IST"
-                className="w-full px-3 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium"
+                value={projeAdi}
+                onChange={e => setProjeAdi(e.target.value)}
+                placeholder="Proje adını giriniz (Örn: Moda Cad. Abone Tesisi)"
+                className="w-full px-3 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-white border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-bold text-slate-900"
               />
             </div>
+
+            {/* Proje ID - Sadece Sheff Girebilir */}
+            <div className="md:col-span-3">
+              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                <span>Proje ID</span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded flex items-center gap-0.5 ${
+                  isSheff
+                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                    : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {!isSheff && <Lock className="w-2.5 h-2.5" />}
+                  Sadece Sheff
+                </span>
+              </label>
+              {isSheff ? (
+                <input
+                  type="text"
+                  value={projeID}
+                  onChange={e => setProjeID(e.target.value)}
+                  placeholder="Örn: PRJ-2026-IST"
+                  className="w-full px-3 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-amber-50/40 border border-amber-400 rounded-lg focus:ring-2 focus:ring-amber-500 font-mono font-bold text-slate-900"
+                />
+              ) : (
+                <div
+                  className="w-full px-3 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-slate-100 border border-slate-300 rounded-lg text-slate-500 font-medium flex items-center justify-between cursor-not-allowed select-none"
+                  title="Proje ID girişi sadece Sheff tarafından yapılabilir"
+                >
+                  <span>Sheff Tarafından Girilecek</span>
+                  <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                </div>
+              )}
+            </div>
+
+            {/* Proje Tipi (Hasar / Pasif / Bakım) - Sadece Sheff Seçebilir */}
+            <div className="md:col-span-4">
+              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                <span>Proje Tipi (Hasar / Pasif / Bakım)</span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded flex items-center gap-0.5 ${
+                  isSheff
+                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                    : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {!isSheff && <Lock className="w-2.5 h-2.5" />}
+                  Sadece Sheff
+                </span>
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {PROJE_TIPLERI.map(tip => {
+                  const isSelected = isSheff && projeTipi === tip.value;
+                  return (
+                    <button
+                      key={tip.value}
+                      type="button"
+                      disabled={!isSheff}
+                      onClick={() => {
+                        if (isSheff) setProjeTipi(tip.value);
+                      }}
+                      title={
+                        isSheff
+                          ? `Proje tipini '${tip.label}' olarak seç`
+                          : 'Proje tipi seçimi sadece Sheff tarafından yapılabilir'
+                      }
+                      className={`py-2 sm:py-1.5 px-2 rounded-lg text-xs font-bold border transition flex items-center justify-center gap-1 ${
+                        !isSheff
+                          ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                          : isSelected
+                          ? `${tip.activeClass} cursor-pointer`
+                          : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer'
+                      }`}
+                    >
+                      <span>{tip.label}</span>
+                      {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Alt Satır: Santral, Saha, Kutu, Tarih, Ekleyen Kullanıcı */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5 sm:gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Santral</label>
               <input
@@ -484,14 +786,20 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
 
         {/* ADIM 2: ÇALIŞMA ÖNCESİ / SONRASI FOTOĞRAFLAR & GPS KONUM */}
         <div className="p-3.5 sm:p-4 bg-blue-50/40 rounded-xl border border-blue-200">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 text-xs font-bold text-blue-950 uppercase tracking-wider">
               <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">2</span>
               Fotoğraflar ve GPS Konum
             </div>
-            <span className="text-[10px] sm:text-[11px] text-blue-800 font-bold bg-blue-100 px-2 py-0.5 rounded-full">
-              Saha Kanıtları
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] sm:text-[11px] text-blue-800 font-bold bg-blue-100 px-2 py-0.5 rounded-full">
+                Saha Kanıtları
+              </span>
+              <span className="text-[10px] sm:text-[11px] text-emerald-800 font-bold bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs" title="Fotoğraflar otomatik olarak Full HD kalitede ~1MB boyutuna küçültülür">
+                <Sparkles className="w-3 h-3 text-emerald-600" />
+                ~1MB Otomatik Sıkıştırma
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
@@ -506,8 +814,11 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
                   {beforePhoto && (
                     <button
                       type="button"
-                      onClick={() => setBeforePhoto('')}
-                      className="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50"
+                      onClick={() => {
+                        setBeforePhoto('');
+                        setBeforePhotoInfo(null);
+                      }}
+                      className="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50 cursor-pointer"
                       title="Fotoğrafı Kaldır"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -515,14 +826,30 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
                   )}
                 </div>
 
-                {beforePhoto ? (
-                  <div className="relative aspect-video rounded-lg overflow-hidden border border-slate-200 mb-2">
+                {isCompressingBefore ? (
+                  <div className="aspect-video rounded-lg border-2 border-dashed border-amber-300 flex flex-col items-center justify-center text-amber-800 mb-2 bg-amber-50/60 p-3 text-center">
+                    <Loader2 className="w-7 h-7 mb-1.5 animate-spin text-amber-600" />
+                    <span className="text-xs font-bold">Fotoğraf ~1MB boyutuna küçültülüyor...</span>
+                    <span className="text-[11px] text-amber-700/80 mt-0.5">Saha detayları korunuyor</span>
+                  </div>
+                ) : beforePhoto ? (
+                  <div className="relative aspect-video rounded-lg overflow-hidden border border-slate-200 mb-2 group">
                     <img src={beforePhoto} alt="Öncesi" className="w-full h-full object-cover" />
+                    <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between pointer-events-none">
+                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold bg-slate-950/85 backdrop-blur-xs text-white px-2 py-0.5 rounded-md border border-amber-400/50 shadow-xs">
+                        <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+                        <span>{beforePhotoInfo?.sizeFormatted || '820 KB (~1MB Optimize)'}</span>
+                        {beforePhotoInfo?.originalFormatted && (
+                          <span className="text-amber-200/90 text-[10px] hidden sm:inline">({beforePhotoInfo.originalFormatted} ➔ ~1MB)</span>
+                        )}
+                      </span>
+                    </div>
                   </div>
                 ) : (
                   <div className="aspect-video rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 mb-2 bg-slate-50/50">
                     <Camera className="w-7 h-7 mb-1 opacity-50" />
                     <span className="text-xs">Öncesi fotoğrafı yükleyin</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">(Otomatik ~1MB'a küçültülür)</span>
                   </div>
                 )}
               </div>
@@ -538,7 +865,8 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
                 <button
                   type="button"
                   onClick={() => fileInputBeforeRef.current?.click()}
-                  className="flex-1 flex items-center justify-center gap-1.5 min-h-[42px] py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-xs font-bold transition cursor-pointer"
+                  disabled={isCompressingBefore}
+                  className="flex-1 flex items-center justify-center gap-1.5 min-h-[42px] py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-xs font-bold transition cursor-pointer disabled:opacity-50"
                 >
                   <Upload className="w-4 h-4" />
                   Dosya Seç
@@ -546,7 +874,8 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
                 <button
                   type="button"
                   onClick={() => setCameraTarget('before')}
-                  className="flex-1 flex items-center justify-center gap-1.5 min-h-[42px] py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs sm:text-xs font-bold transition shadow-xs cursor-pointer"
+                  disabled={isCompressingBefore}
+                  className="flex-1 flex items-center justify-center gap-1.5 min-h-[42px] py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs sm:text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   <Camera className="w-4 h-4" />
                   Kamera Aç
@@ -565,8 +894,11 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
                   {afterPhoto && (
                     <button
                       type="button"
-                      onClick={() => setAfterPhoto('')}
-                      className="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50"
+                      onClick={() => {
+                        setAfterPhoto('');
+                        setAfterPhotoInfo(null);
+                      }}
+                      className="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50 cursor-pointer"
                       title="Fotoğrafı Kaldır"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -574,14 +906,30 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
                   )}
                 </div>
 
-                {afterPhoto ? (
-                  <div className="relative aspect-video rounded-lg overflow-hidden border border-slate-200 mb-2">
+                {isCompressingAfter ? (
+                  <div className="aspect-video rounded-lg border-2 border-dashed border-emerald-300 flex flex-col items-center justify-center text-emerald-800 mb-2 bg-emerald-50/60 p-3 text-center">
+                    <Loader2 className="w-7 h-7 mb-1.5 animate-spin text-emerald-600" />
+                    <span className="text-xs font-bold">Fotoğraf ~1MB boyutuna küçültülüyor...</span>
+                    <span className="text-[11px] text-emerald-700/80 mt-0.5">Saha detayları korunuyor</span>
+                  </div>
+                ) : afterPhoto ? (
+                  <div className="relative aspect-video rounded-lg overflow-hidden border border-slate-200 mb-2 group">
                     <img src={afterPhoto} alt="Sonrası" className="w-full h-full object-cover" />
+                    <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between pointer-events-none">
+                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold bg-slate-950/85 backdrop-blur-xs text-white px-2 py-0.5 rounded-md border border-emerald-400/50 shadow-xs">
+                        <Sparkles className="w-3 h-3 text-emerald-400 shrink-0" />
+                        <span>{afterPhotoInfo?.sizeFormatted || '790 KB (~1MB Optimize)'}</span>
+                        {afterPhotoInfo?.originalFormatted && (
+                          <span className="text-emerald-200/90 text-[10px] hidden sm:inline">({afterPhotoInfo.originalFormatted} ➔ ~1MB)</span>
+                        )}
+                      </span>
+                    </div>
                   </div>
                 ) : (
                   <div className="aspect-video rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 mb-2 bg-slate-50/50">
                     <Camera className="w-7 h-7 mb-1 opacity-50" />
                     <span className="text-xs">Sonrası fotoğrafı yükleyin</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">(Otomatik ~1MB'a küçültülür)</span>
                   </div>
                 )}
               </div>
@@ -597,7 +945,8 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
                 <button
                   type="button"
                   onClick={() => fileInputAfterRef.current?.click()}
-                  className="flex-1 flex items-center justify-center gap-1.5 min-h-[42px] py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-xs font-bold transition cursor-pointer"
+                  disabled={isCompressingAfter}
+                  className="flex-1 flex items-center justify-center gap-1.5 min-h-[42px] py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-xs font-bold transition cursor-pointer disabled:opacity-50"
                 >
                   <Upload className="w-4 h-4" />
                   Dosya Seç
@@ -605,7 +954,8 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
                 <button
                   type="button"
                   onClick={() => setCameraTarget('after')}
-                  className="flex-1 flex items-center justify-center gap-1.5 min-h-[42px] py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-xs font-bold transition shadow-xs cursor-pointer"
+                  disabled={isCompressingAfter}
+                  className="flex-1 flex items-center justify-center gap-1.5 min-h-[42px] py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   <Camera className="w-4 h-4" />
                   Kamera Aç
@@ -675,7 +1025,7 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
         {/* ADIM 3: İŞÇİLİK VE MALZEME POZU EKLEME FORMU */}
         <form onSubmit={handleAddPozLineToStaging} className="space-y-4">
           <div className="p-3.5 sm:p-4 bg-emerald-50/40 rounded-xl border border-emerald-200 space-y-3.5 sm:space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-xs font-bold text-emerald-950 uppercase tracking-wider">
                 <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">3</span>
                 İşçilik ve Malzeme Poz Satırı Ekle
@@ -687,38 +1037,134 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
               )}
             </div>
 
+            {/* İşçilik Ana Grubu Hızlı Filtre Butonları */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-emerald-900 flex items-center gap-1">
+                  <FolderKanban className="w-3.5 h-3.5 text-emerald-700" />
+                  İşçilik Ana Grubu (Hızlı Seçim):
+                </span>
+                {activeJobCategory !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveJobCategory('all')}
+                    className="text-[11px] text-emerald-700 hover:underline font-semibold cursor-pointer"
+                  >
+                    Tüm İşçilik Gruplarını Göster
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveJobCategory('all');
+                    setIsIscilikDropdownOpen(true);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition border cursor-pointer ${
+                    activeJobCategory === 'all'
+                      ? 'bg-emerald-700 text-white border-emerald-700 shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-emerald-50'
+                  }`}
+                >
+                  Tümü ({JOB_ITEMS.length})
+                </button>
+                {Object.entries(JOB_CATEGORY_TITLES).map(([code, title]) => {
+                  const isActive = activeJobCategory === code;
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => {
+                        setActiveJobCategory(code);
+                        setIscilikSearch('');
+                        setIsIscilikDropdownOpen(true);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap transition border cursor-pointer ${
+                        isActive
+                          ? 'bg-emerald-700 text-white border-emerald-700 shadow-2xs font-bold'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-emerald-50'
+                      }`}
+                    >
+                      {title}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* İşçilik Alanları */}
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 sm:gap-3">
               <div className="sm:col-span-4 relative">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  İşçilik Poz No (Ara / Seç)
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>İşçilik Poz No (Ara / Seç)</span>
+                  {selectedJob && (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
+                      Seçildi: {selectedJob.poz}
+                    </span>
+                  )}
                 </label>
-                <input
-                  type="text"
-                  value={iscilikSearch}
-                  onChange={e => {
-                    setIscilikSearch(e.target.value);
-                    setIsIscilikDropdownOpen(true);
-                    if (selectedJob && selectedJob.poz !== e.target.value) {
-                      setSelectedJob(null);
-                    }
-                  }}
-                  onFocus={() => setIsIscilikDropdownOpen(true)}
-                  placeholder="örn: 4.1, 2.1, Direk..."
-                  className="w-full px-3 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 font-medium"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={iscilikSearch}
+                    onChange={e => {
+                      setIscilikSearch(e.target.value);
+                      setIsIscilikDropdownOpen(true);
+                      if (selectedJob && selectedJob.poz !== e.target.value) {
+                        setSelectedJob(null);
+                      }
+                    }}
+                    onFocus={() => setIsIscilikDropdownOpen(true)}
+                    placeholder="örn: 4.1, 2.1, 10.1, Direk..."
+                    className="w-full px-3 py-2.5 sm:py-1.5 pr-8 text-sm sm:text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 font-medium"
+                  />
+                  {iscilikSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIscilikSearch('');
+                        setSelectedJob(null);
+                        setIsIscilikDropdownOpen(true);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                      title="Aramayı temizle"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
 
                 {isIscilikDropdownOpen && filteredJobs.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-300 rounded-xl shadow-xl z-20">
+                  <div className="absolute top-full left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white border border-slate-300 rounded-xl shadow-xl z-20">
+                    <div className="sticky top-0 bg-slate-100 px-3 py-1.5 text-[10px] font-bold text-slate-600 flex items-center justify-between border-b border-slate-200">
+                      <span>
+                        {activeJobCategory === 'all'
+                          ? 'İşçilik Poz Listesi'
+                          : JOB_CATEGORY_TITLES[activeJobCategory]}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsIscilikDropdownOpen(false)}
+                        className="text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                      >
+                        Kapat
+                      </button>
+                    </div>
                     {filteredJobs.map(job => (
                       <button
                         key={job.poz + job.desc}
                         type="button"
                         onClick={() => handleSelectJob(job)}
-                        className="w-full text-left px-3.5 py-2.5 sm:py-2 text-xs sm:text-xs hover:bg-emerald-50 flex items-center justify-between border-b border-slate-100 last:border-b-0 cursor-pointer"
+                        className="w-full text-left px-3.5 py-2.5 sm:py-2 text-xs hover:bg-emerald-50 flex items-center justify-between gap-2 border-b border-slate-100 last:border-b-0 cursor-pointer"
                       >
-                        <span className="font-bold text-emerald-800 font-mono text-sm sm:text-xs">{job.poz}</span>
-                        <span className="text-slate-600 truncate max-w-[200px] text-right text-xs">{job.desc}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="font-bold text-emerald-800 font-mono bg-emerald-100/80 px-1.5 py-0.5 rounded text-xs">
+                            {job.poz}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-semibold">({job.unit})</span>
+                        </div>
+                        <span className="text-slate-700 truncate text-right text-xs font-medium">{job.desc}</span>
                       </button>
                     ))}
                   </div>
@@ -730,7 +1176,7 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
                 <input
                   type="text"
                   readOnly
-                  value={selectedJob ? selectedJob.desc : (iscilikSearch ? 'İşçilik pozu seçildiğinde dolar' : '')}
+                  value={activeJobForMaterials ? activeJobForMaterials.desc : (iscilikSearch ? 'İşçilik pozu seçildiğinde dolar' : '')}
                   placeholder="Poz seçildiğinde otomatik gelir"
                   className="w-full px-3 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-slate-100 border border-slate-300 rounded-lg text-slate-700 font-medium cursor-not-allowed truncate"
                 />
@@ -759,45 +1205,214 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
                   <input
                     type="text"
                     readOnly
-                    value={selectedJob ? selectedJob.unit : '-'}
+                    value={activeJobForMaterials ? activeJobForMaterials.unit : '-'}
                     className="w-full px-2 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-slate-100 border border-slate-300 rounded-lg text-slate-700 text-center font-bold cursor-not-allowed"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Malzeme Seçimi (İsteğe Bağlı) */}
-            <div className="border-t border-emerald-200/60 pt-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  Kullanılan Malzeme (Opsiyonel / Çoklu Seçim)
-                </span>
+            {/* Malzeme Seçimi (İşçiliğe Göre Otomatik Gruplanmış) */}
+            <div className="border-t border-emerald-200/60 pt-3.5 space-y-2.5">
+              {/* Başlık & Mod Seçimi */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
-                    Seçili: {selectedMalzemeler.length}
+                  <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                    <PackageCheck className="w-4 h-4 text-amber-600" />
+                    Seçilen İşçiliğe Göre Gruplanmış Malzeme Listesi
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {activeJobForMaterials && jobMaterialRecommendation && (
+                    <div className="inline-flex rounded-lg border border-amber-300 bg-white p-0.5 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMalzemeViewMode('recommended');
+                          setActiveMalzemeGroup('all');
+                        }}
+                        className={`px-2.5 py-1 rounded-md font-bold transition cursor-pointer flex items-center gap-1 ${
+                          malzemeViewMode === 'recommended'
+                            ? 'bg-amber-500 text-slate-950 shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Star className="w-3 h-3" />
+                        İşçiliğe Uygun ({jobMaterialRecommendation.materials.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMalzemeViewMode('all');
+                          setActiveMalzemeGroup('all');
+                        }}
+                        className={`px-2.5 py-1 rounded-md font-bold transition cursor-pointer flex items-center gap-1 ${
+                          malzemeViewMode === 'all'
+                            ? 'bg-slate-800 text-white shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Filter className="w-3 h-3" />
+                        Tüm Malzemeler ({MALZEME_ITEMS.length})
+                      </button>
+                    </div>
+                  )}
+
+                  <span className="text-[11px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg">
+                    Seçili Malzeme: {selectedMalzemeler.length}
                   </span>
                   {selectedMalzemeler.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setSelectedMalzemeler([])}
-                      className="text-[11px] text-rose-600 hover:underline font-semibold cursor-pointer"
+                      className="text-[11px] text-rose-600 hover:underline font-bold cursor-pointer"
                     >
-                      Temizle
+                      Seçimi Temizle
                     </button>
                   )}
                 </div>
               </div>
 
+              {/* Seçilen İşçiliğe Özel Malzeme Grubu Bilgi Kartı */}
+              {activeJobForMaterials && jobMaterialRecommendation ? (
+                <div className="p-2.5 sm:p-3 rounded-xl bg-amber-50/90 border border-amber-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-amber-950">
+                      <span className="bg-emerald-700 text-white font-mono px-2 py-0.5 rounded text-[11px]">
+                        Poz {activeJobForMaterials.poz}
+                      </span>
+                      <span>{activeJobForMaterials.desc}</span>
+                    </div>
+                    <p className="text-[11px] text-amber-900/90 font-medium">
+                      💡 {jobMaterialRecommendation.helperNote}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] font-bold bg-white text-amber-900 border border-amber-300 px-2 py-1 rounded-lg">
+                      {jobMaterialRecommendation.recommendedGroups.length} Uygun Grup Hazır
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-slate-100/80 border border-slate-200 text-[11px] text-slate-600 flex items-center justify-between">
+                  <span>
+                    ℹ️ Yukarıdan bir <strong>İşçilik Pozu</strong> seçtiğinizde, o işçiliğe ait malzeme grupları otomatik olarak filtrelenir ve seçime hazır gelir.
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-500 shrink-0 ml-2">
+                    {MALZEME_GROUPS.length} Malzeme Grubu
+                  </span>
+                </div>
+              )}
+
+              {/* Malzeme Alt Grup Sekmeleri (Seçilen İşçiliğin Grupları veya Tüm Gruplar) */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveMalzemeGroup('all')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition border cursor-pointer ${
+                    activeMalzemeGroup === 'all'
+                      ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50'
+                  }`}
+                >
+                  {activeJobForMaterials && malzemeViewMode === 'recommended'
+                    ? `Tüm Uygun Gruplar (${jobMaterialRecommendation?.materials.length || 0})`
+                    : `Tüm Gruplar (${MALZEME_ITEMS.length})`}
+                </button>
+
+                {activeJobForMaterials &&
+                  malzemeViewMode === 'recommended' &&
+                  jobMaterialRecommendation &&
+                  jobMaterialRecommendation.priorityCodes.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveMalzemeGroup('priority')}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition border flex items-center gap-1 cursor-pointer ${
+                        activeMalzemeGroup === 'priority'
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                          : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+                      }`}
+                    >
+                      <Star className="w-3 h-3 fill-current" />
+                      Doğrudan İlişkili ({jobMaterialRecommendation.priorityCodes.length})
+                    </button>
+                  )}
+
+                {displayedMalzemeGroups.map(grp => {
+                  const count = (
+                    activeJobForMaterials && malzemeViewMode === 'recommended' && jobMaterialRecommendation
+                      ? jobMaterialRecommendation.materials
+                      : MALZEME_ITEMS
+                  ).filter(m => m.groupId === grp.id).length;
+
+                  if (count === 0) return null;
+                  const isActive = activeMalzemeGroup === grp.id;
+
+                  return (
+                    <button
+                      key={grp.id}
+                      type="button"
+                      onClick={() => setActiveMalzemeGroup(grp.id)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap transition border cursor-pointer ${
+                        isActive
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-2xs font-bold'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50'
+                      }`}
+                      title={grp.title}
+                    >
+                      {grp.shortTitle} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Seçilmiş Malzemelerin Hızlı Özet Çipleri */}
+              {selectedMalzemeler.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-amber-100/60 border border-amber-300">
+                  <span className="text-[11px] font-bold text-amber-950 mr-1">Seçilenler:</span>
+                  {selectedMalzemeler.map(kod => {
+                    const m = MALZEME_ITEMS.find(item => item.kod === kod);
+                    return (
+                      <span
+                        key={kod}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white border border-amber-400 text-[11px] font-semibold text-slate-800 shadow-2xs"
+                      >
+                        <strong className="font-mono text-amber-800">{kod}</strong>
+                        <span className="max-w-[180px] truncate">{m?.ad}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleMalzeme(kod)}
+                          className="text-rose-500 hover:text-rose-700 ml-0.5 cursor-pointer"
+                          title="Seçimi kaldır"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Malzeme Arama, Miktar ve Birim Alanları */}
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 sm:gap-3">
-                <div className="sm:col-span-4">
+                <div className="sm:col-span-4 relative">
                   <input
                     type="text"
                     value={malzemeSearch}
                     onChange={e => setMalzemeSearch(e.target.value)}
-                    placeholder="Malzeme Poz veya Adı Ara..."
-                    className="w-full px-3 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 font-medium"
+                    placeholder="Bu grupta malzeme poz veya adı ara..."
+                    className="w-full px-3 py-2.5 sm:py-1.5 pr-7 text-sm sm:text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 font-medium"
                   />
+                  {malzemeSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setMalzemeSearch('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 <div className="sm:col-span-4 flex items-center gap-2">
@@ -830,30 +1445,77 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
                 </div>
               </div>
 
-              {/* Malzeme Seçim Çipleri */}
-              <div className="bg-white border border-slate-200 rounded-xl p-2 max-h-36 overflow-y-auto">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
-                  {filteredMalzemeler.map(m => {
-                    const isSelected = selectedMalzemeler.includes(m.kod);
-                    return (
+              {/* Gruplanmış Malzeme Seçim Listesi */}
+              <div className="bg-white border border-slate-200 rounded-xl p-2.5 max-h-64 overflow-y-auto space-y-3">
+                {groupedFilteredMalzemeler.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-slate-500 space-y-1.5">
+                    <p>Aranan kriterde malzeme bulunamadı.</p>
+                    {malzemeViewMode === 'recommended' && (
                       <button
-                        key={m.kod}
                         type="button"
-                        onClick={() => handleToggleMalzeme(m.kod)}
-                        className={`text-left px-3 py-2 sm:py-1 rounded-lg text-xs transition border flex items-center justify-between min-h-[38px] cursor-pointer ${
-                          isSelected
-                            ? 'bg-amber-100/90 border-amber-400 text-amber-950 font-bold'
-                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700 font-medium'
-                        }`}
+                        onClick={() => {
+                          setMalzemeViewMode('all');
+                          setActiveMalzemeGroup('all');
+                        }}
+                        className="text-blue-600 hover:underline font-bold cursor-pointer"
                       >
-                        <span className="truncate pr-1">
-                          <strong className="text-blue-700 mr-1 font-mono">{m.kod}</strong> {m.ad}
-                        </span>
-                        {isSelected && <Check className="w-4 h-4 text-amber-700 shrink-0" />}
+                        Tüm Malzeme Gruplarında Ara ({MALZEME_ITEMS.length} Malzeme)
                       </button>
-                    );
-                  })}
-                </div>
+                    )}
+                  </div>
+                ) : (
+                  groupedFilteredMalzemeler.map(groupBlock => (
+                    <div key={groupBlock.groupId} className="space-y-1.5">
+                      <div className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-xs px-2.5 py-1 rounded-lg border border-slate-200 flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-amber-500" />
+                          {groupBlock.groupTitle}
+                        </span>
+                        <span className="text-[10px] font-semibold text-slate-500">
+                          {groupBlock.items.length} malzeme
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+                        {groupBlock.items.map(m => {
+                          const isSelected = selectedMalzemeler.includes(m.kod);
+                          const isPriority = priorityCodeSet.has(m.kod);
+                          return (
+                            <button
+                              key={m.kod}
+                              type="button"
+                              onClick={() => handleToggleMalzeme(m.kod)}
+                              className={`text-left px-3 py-2 sm:py-1.5 rounded-lg text-xs transition border flex items-center justify-between gap-1.5 min-h-[38px] cursor-pointer ${
+                                isSelected
+                                  ? 'bg-amber-100/95 border-amber-500 text-amber-950 font-bold shadow-2xs'
+                                  : isPriority
+                                  ? 'bg-emerald-50/60 border-emerald-200 hover:bg-emerald-100/60 text-slate-800 font-medium'
+                                  : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700 font-medium'
+                              }`}
+                            >
+                              <span className="truncate pr-1 flex items-center gap-1">
+                                <strong className="text-blue-700 font-mono shrink-0">{m.kod}</strong>
+                                <span className="truncate">{m.ad}</span>
+                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {isPriority && !isSelected && (
+                                  <span
+                                    className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1 py-0.2 rounded"
+                                    title="Seçilen işçilik pozu için birinci dereceden önerilen malzeme"
+                                  >
+                                    Önerilen
+                                  </span>
+                                )}
+                                <span className="text-[10px] text-slate-400 font-mono">{m.defaultUnit}</span>
+                                {isSelected && <Check className="w-4 h-4 text-amber-700 shrink-0" />}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -1040,9 +1702,12 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
           {/* FINAL SUBMIT BUTTON: Save and Sync to Google Sheets */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3">
             <div className="text-xs text-slate-600 space-y-0.5">
-              <div className="flex items-center gap-1.5 font-bold text-slate-800">
+              <div className="flex flex-wrap items-center gap-1.5 font-bold text-slate-800">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Ortak: {projeID || 'Proje Belirtilmedi'} • {santral || 'Santral'} • Kutu {kutu || '-'}</span>
+                <span>
+                  Proje: {projeAdi || 'Belirtilmedi'} • ID: {isSheff ? (projeID || '-') : 'Sheff Atayacak'}
+                  {isSheff && projeTipi ? ` (${projeTipi})` : ''} • {santral || 'Santral'} • Kutu {kutu || '-'}
+                </span>
               </div>
               <div className="text-[11px] text-slate-500">
                 Fotoğraflar ve GPS konumu, listedeki <strong>{stagedLines.length} poz satırına</strong> birlikte işlenecektir.
@@ -1072,10 +1737,19 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
           isOpen={Boolean(cameraTarget)}
           onClose={() => setCameraTarget(null)}
           onCapture={(dataUrl) => {
+            const display = getImageSizeDisplay(dataUrl);
             if (cameraTarget === 'before') {
               setBeforePhoto(dataUrl);
+              setBeforePhotoInfo({
+                sizeFormatted: `${display.sizeFormatted} (~1MB Optimize)`
+              });
+              showNotification(`📸 Öncesi fotoğrafı kameradan kaydedildi (${display.sizeFormatted})`, 'success');
             } else {
               setAfterPhoto(dataUrl);
+              setAfterPhotoInfo({
+                sizeFormatted: `${display.sizeFormatted} (~1MB Optimize)`
+              });
+              showNotification(`📸 Sonrası fotoğrafı kameradan kaydedildi (${display.sizeFormatted})`, 'success');
             }
           }}
           title={cameraTarget === 'before' ? 'Çalışma Öncesi Fotoğrafı Çek' : 'Çalışma Sonrası Fotoğrafı Çek'}

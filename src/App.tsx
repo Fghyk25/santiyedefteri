@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useTransition } from 'react';
-import { SantiyeEntry, User, SyncConfig, SyncLogEvent } from './types';
+import { ProjeTipi, SantiyeEntry, User, SyncConfig, SyncLogEvent } from './types';
 import { 
   loadEntriesFromStorage, 
   saveEntriesToStorage, 
@@ -209,6 +209,53 @@ export default function App() {
     }
   };
 
+  // Update Project ID and Project Type (Sheff only)
+  const handleUpdateProjectMeta = (
+    entryId: string,
+    newProjeID: string,
+    newProjeTipi: ProjeTipi,
+    applyToSameProjectName = true
+  ) => {
+    const isSheff = Boolean(
+      currentUser?.username?.toLowerCase() === 'sheff' || currentUser?.isAdmin
+    );
+    if (!isSheff) {
+      return;
+    }
+
+    const target = entries.find(e => e.id === entryId);
+    if (!target) return;
+
+    setEntries(prev =>
+      prev.map(e => {
+        const shouldUpdate =
+          e.id === entryId ||
+          (applyToSameProjectName &&
+            Boolean(target.projeAdi) &&
+            e.projeAdi === target.projeAdi &&
+            e.santral === target.santral);
+        if (!shouldUpdate) return e;
+        return {
+          ...e,
+          projeID: newProjeID.trim() || 'Atanmadı',
+          projeTipi: newProjeTipi,
+          syncStatus: syncConfig.autoSync ? 'pending' : e.syncStatus
+        };
+      })
+    );
+
+    addLog(
+      `✏️ Sheff tarafından Proje ID (${newProjeID || 'Atanmadı'}) ve Proje Tipi (${newProjeTipi || '-'}) güncellendi: ${target.projeAdi || target.santral}`,
+      'info'
+    );
+
+    if (syncConfig.autoSync) {
+      setTimeout(() => {
+        handleTriggerSync();
+      }, 400);
+    }
+  };
+
   // Delete Entry (Admin only)
   const handleDeleteEntry = (id: string) => {
     if (currentUser && !currentUser.isAdmin) {
@@ -321,6 +368,11 @@ export default function App() {
             onOpenSettings={currentUser.canAccessSettings ? () => setIsSettingsModalOpen(true) : undefined}
             onDeleteEntry={currentUser.isAdmin ? handleDeleteEntry : undefined}
             onClearAll={currentUser.isAdmin ? handleClearAll : undefined}
+            onUpdateProjectMeta={
+              currentUser.username.toLowerCase() === 'sheff' || currentUser.isAdmin
+                ? handleUpdateProjectMeta
+                : undefined
+            }
           />
         )}
 
