@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { X, FileSpreadsheet, Check, Copy, ExternalLink, RefreshCw, Send, HelpCircle, ShieldCheck, FolderCheck, Image as ImageIcon } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, FileSpreadsheet, Check, Copy, ExternalLink, RefreshCw, Send, HelpCircle, ShieldCheck, FolderCheck, Image as ImageIcon, Sparkles, CheckCircle2 } from 'lucide-react';
 import { SyncConfig } from '../types';
+import { DEFAULT_GOOGLE_WEBHOOK_URL } from '../services/storageAndSync';
 
 interface GoogleSheetsSettingsModalProps {
   isOpen: boolean;
@@ -20,11 +21,18 @@ export default function GoogleSheetsSettingsModal({
   isTestingSync
 }: GoogleSheetsSettingsModalProps) {
   const [sheetUrl, setSheetUrl] = useState(config.googleSheetUrl);
-  const [webhookUrl, setWebhookUrl] = useState(config.googleWebhookUrl);
+  const [webhookUrl, setWebhookUrl] = useState(config.googleWebhookUrl || DEFAULT_GOOGLE_WEBHOOK_URL);
   const [autoSync, setAutoSync] = useState(config.autoSync);
   const [syncInterval, setSyncInterval] = useState(config.syncInterval || 15);
   const [copiedCode, setCopiedCode] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  useEffect(() => {
+    setSheetUrl(config.googleSheetUrl);
+    setWebhookUrl(config.googleWebhookUrl || DEFAULT_GOOGLE_WEBHOOK_URL);
+    setAutoSync(config.autoSync);
+    setSyncInterval(config.syncInterval || 15);
+  }, [config, isOpen]);
 
   const sampleAppsScript = `// ============================================================================
 // TELEKOM ŞANTİYE DEFTERİ - GOOGLE SHEETS & GOOGLE DRIVE ENTEGRASYON KODU
@@ -296,18 +304,35 @@ function doGet(e) {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Google Apps Script Webhook URL (Canlı API Bağlantısı)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-700">
+                  Google Apps Script Webhook URL (Canlı API Bağlantısı)
+                </label>
+                {webhookUrl.trim() === DEFAULT_GOOGLE_WEBHOOK_URL ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    Varsayılan Webhook Aktif
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setWebhookUrl(DEFAULT_GOOGLE_WEBHOOK_URL)}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-md transition cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3 text-blue-600" />
+                    Varsayılan Webhook'u Yükle
+                  </button>
+                )}
+              </div>
               <input
                 type="text"
                 value={webhookUrl}
                 onChange={e => setWebhookUrl(e.target.value)}
-                placeholder="https://script.google.com/macros/s/AKfycb.../exec (İsteğe Bağlı)"
-                className="w-full px-3.5 py-2.5 sm:py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono min-h-[42px] sm:min-h-0"
+                placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                className="w-full px-3.5 py-2.5 sm:py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono min-h-[42px] sm:min-h-0 bg-slate-50/50"
               />
               <span className="text-[11px] text-slate-500 mt-1 block">
-                Webhook URL girdiğinizde her yeni kayıt otomatik olarak Google E-Tabloya POST edilir.
+                Bu webhook bağlantısı tüm saha kullanıcıları için önceden tanımlıdır. Yapılan her imalat girişi anında bu uç noktaya iletilerek Google Sheets ve Drive'a yazılır.
               </span>
             </div>
 
