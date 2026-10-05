@@ -97,14 +97,16 @@ export const SYSTEM_USERS: SystemUser[] = [
 
 export const DEMO_USERS: User[] = SYSTEM_USERS;
 
+export const DEFAULT_GOOGLE_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzGmLc_yfbyrC4LhsH8Qll9DWzKdA_R6UksRiraYIYKE7xF_kGkgO9XgiPtuvWbVg2a/exec';
+
 export const INITIAL_SYNC_CONFIG: SyncConfig = {
   googleSheetUrl: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
-  googleWebhookUrl: '',
+  googleWebhookUrl: DEFAULT_GOOGLE_WEBHOOK_URL,
   autoSync: true,
   syncInterval: 15,
   lastSyncAttempt: new Date().toLocaleTimeString('tr-TR'),
   lastSyncStatus: 'success',
-  lastSyncMessage: 'Google E-Tablolar anlık senkronizasyon motoru hazır.'
+  lastSyncMessage: 'Google E-Tablolar anlık senkronizasyon motoru hazır (Webhook bağlı).'
 };
 
 const getRelativeIsoDate = (daysAgo: number) => {
@@ -469,7 +471,13 @@ export function getStoredSyncConfig(): SyncConfig {
       localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(INITIAL_SYNC_CONFIG));
       return INITIAL_SYNC_CONFIG;
     }
-    return JSON.parse(data);
+    const parsed: SyncConfig = JSON.parse(data);
+    // If webhook url is missing or empty, ensure the official pre-configured webhook URL is loaded
+    if (!parsed.googleWebhookUrl || !parsed.googleWebhookUrl.trim()) {
+      parsed.googleWebhookUrl = DEFAULT_GOOGLE_WEBHOOK_URL;
+      localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(parsed));
+    }
+    return parsed;
   } catch {
     return INITIAL_SYNC_CONFIG;
   }
@@ -597,9 +605,15 @@ export const saveSyncLogs = setStoredSyncLogs;
 // Direct Webhook dispatch to Google Sheets Apps Script Web App
 export async function dispatchToGoogleSheetsWebhook(
   entries: SantiyeEntry[],
-  configOrUrl: SyncConfig | string
+  configOrUrl?: SyncConfig | string
 ): Promise<{ success: boolean; message: string; syncedCount: number }> {
-  const webhookUrl = typeof configOrUrl === 'string' ? configOrUrl : (configOrUrl.googleWebhookUrl || '');
+  let webhookUrl = typeof configOrUrl === 'string' 
+    ? configOrUrl 
+    : (configOrUrl?.googleWebhookUrl || '');
+
+  if (!webhookUrl || !webhookUrl.trim()) {
+    webhookUrl = DEFAULT_GOOGLE_WEBHOOK_URL;
+  }
 
   // Prepare payload with image base64 / URLs.
   // Bir Proje ID/Adı için öncesi ve sonrası birer fotoğraf iletilir; gereksiz yükleme ve tekrarlar önlenir.
@@ -643,7 +657,7 @@ export async function dispatchToGoogleSheetsWebhook(
       mapsUrl: e.location?.mapsUrl || '-',
       createdBy: author,
       createdAt: e.createdAt,
-      // Turkish keys for backward compatibility
+      // Turkish keys for full compatibility with sheet column headers
       'Tarih': e.date,
       'Proje Adı': e.projeAdi || '-',
       'Proje ID': e.projeID || 'Atanmadı',
@@ -672,16 +686,24 @@ export async function dispatchToGoogleSheetsWebhook(
 
   if (webhookUrl && webhookUrl.trim().startsWith('http')) {
     try {
-      await fetch(webhookUrl, {
+      const payload = {
+        action: 'sync_santiye_entries',
+        timestamp: new Date().toISOString(),
+        driveFolderName: 'Şantiye Fotoğrafları',
+        entries: payloadEntries,
+        rows: payloadEntries,
+        data: payloadEntries
+      };
+
+      // Content-Type: text/plain is CORS-safelisted for mode: 'no-cors' so browsers will never throw TypeError.
+      // Google Apps Script doPost(e) parses e.postData.contents identically.
+      await fetch(webhookUrl.trim(), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'no-cors', // standard for Google Apps Script Web App redirect handling
-        body: JSON.stringify({
-          action: 'sync_santiye_entries',
-          timestamp: new Date().toISOString(),
-          driveFolderName: 'Şantiye Fotoğrafları',
-          entries: payloadEntries
-        })
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+        mode: 'no-cors',
+        body: JSON.stringify(payload)
       });
 
       return {
