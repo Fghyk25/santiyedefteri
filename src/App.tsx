@@ -12,6 +12,7 @@ import {
   saveSyncConfig,
   dispatchToGoogleSheetsWebhook,
   DEFAULT_SYNC_CONFIG,
+  DEFAULT_GOOGLE_WEBHOOK_URL,
   SYSTEM_USERS
 } from './services/storageAndSync';
 import LoginPanel from './components/LoginPanel';
@@ -127,25 +128,40 @@ export default function App() {
     if (isSyncing) return;
     setIsSyncing(true);
 
-    const pendingCount = entries.filter(e => e.syncStatus === 'pending').length;
+    const pendingItems = entries.filter(e => e.syncStatus === 'pending');
+    const itemsToSync = pendingItems.length > 0 ? pendingItems : entries;
+
     addLog(
-      pendingCount > 0 
-        ? `${pendingCount} bekleyen kayıt Google E-Tabloya iletiliyor...` 
-        : 'Tüm şantiye kayıtları Google E-Tablo ile doğrulanıyor...', 
+      pendingItems.length > 0 
+        ? `${pendingItems.length} bekleyen imalat kaydı Google E-Tabloya iletiliyor...` 
+        : `Tüm şantiye kayıtları (${entries.length} satır) Google E-Tablo ile eşitleniyor...`, 
       'info'
     );
 
     try {
-      const result = await dispatchToGoogleSheetsWebhook(entries, syncConfig);
+      const effectiveConfig: SyncConfig = {
+        ...syncConfig,
+        googleWebhookUrl: syncConfig.googleWebhookUrl || DEFAULT_GOOGLE_WEBHOOK_URL
+      };
+      const result = await dispatchToGoogleSheetsWebhook(itemsToSync, effectiveConfig);
 
       if (result.success) {
         // Mark all as synced
-        setEntries(prev => prev.map(e => ({ ...e, syncStatus: 'synced' })));
+        setEntries(prev => {
+          const updated = prev.map(e => ({ ...e, syncStatus: 'synced' as const }));
+          saveEntriesToStorage(updated);
+          return updated;
+        });
         const nowStr = new Date().toLocaleTimeString('tr-TR');
-        const updatedConfig = { ...syncConfig, lastSyncAttempt: nowStr };
+        const updatedConfig = { 
+          ...effectiveConfig, 
+          lastSyncAttempt: nowStr,
+          lastSyncStatus: 'success' as const,
+          lastSyncMessage: `${itemsToSync.length} kayıt Google E-Tabloya başarıyla yansıtıldı.`
+        };
         setSyncConfig(updatedConfig);
         saveSyncConfig(updatedConfig);
-        addLog(`✅ Google Sheets senkronizasyonu tamamlandı (${entries.length} satır eşitlendi).`, 'success');
+        addLog(`✅ Google Sheets senkronizasyonu tamamlandı (${itemsToSync.length} satır Google E-Tabloya yansıtıldı).`, 'success');
       } else {
         addLog(`⚠️ Senkron uyarısı: ${result.message}`, 'warning');
       }
@@ -156,7 +172,7 @@ export default function App() {
     }
   }, [entries, syncConfig, isSyncing, addLog]);
 
-  // Auto-Sync Effect on new entries or periodic interval
+  // Auto-Sync Effect on periodic interval
   useEffect(() => {
     if (!syncConfig.autoSync) return;
 
@@ -171,8 +187,8 @@ export default function App() {
     return () => clearInterval(timer);
   }, [syncConfig.autoSync, syncConfig.syncInterval, entries, isSyncing, handleTriggerSync]);
 
-  // Handle Add Entry
-  const handleAddEntry = (newEntryDataList: Omit<SantiyeEntry, 'id' | 'createdAt' | 'syncStatus'>[]) => {
+  // Handle Add Entry with instant Webhook sync to Google Sheets
+  const handleAddEntry = async (newEntryDataList: Omit<SantiyeEntry, 'id' | 'createdAt' | 'syncStatus'>[]) => {
     if (currentUser && !currentUser.canCreateEntry) {
       alert('İmalat girişi yetkiniz bulunmamaktadır.');
       return;
@@ -190,22 +206,56 @@ export default function App() {
         createdBy: entryAuthor,
         id: `ENTRY-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`,
         createdAt: timestamp,
-        syncStatus: syncConfig.autoSync ? 'pending' : 'synced'
+        syncStatus: 'pending' as const
       };
     });
 
-    setEntries(prev => [...createdItems, ...prev]);
+    // 1. Instantly save new entries to local state & storage
+    setEntries(prev => {
+      const updated = [...createdItems, ...prev];
+      saveEntriesToStorage(updated);
+      return updated;
+    });
 
     addLog(
-      `➕ ${createdItems.length} yeni imalat kaydı şantiye defterine eklendi (${createdItems[0].iscilikPoz}) - Ekleyen: ${createdItems[0].createdBy}`,
+      `➕ ${createdItems.length} yeni imalat kaydı eklendi (${createdItems[0].iscilikPoz} - ${createdItems[0].iscilikAciklama}) - Ekleyen: ${createdItems[0].createdBy}`,
       'info'
     );
 
-    // If auto-sync is on, immediately trigger sync
-    if (syncConfig.autoSync) {
-      setTimeout(() => {
-        handleTriggerSync();
-      }, 500);
+    // 2. Immediately send to pre-configured Google Sheets Webhook
+    const effectiveWebhook = syncConfig.googleWebhookUrl || DEFAULT_GOOGLE_WEBHOOK_URL;
+    if (syncConfig.autoSync || effectiveWebhook) {
+      addLog(`🚀 ${createdItems.length} imalat kaydı ve fotoğraflar Google E-Tabloya iletiliyor...`, 'info');
+      try {
+        const syncRes = await dispatchToGoogleSheetsWebhook(createdItems, {
+          ...syncConfig,
+          googleWebhookUrl: effectiveWebhook
+        });
+
+        if (syncRes.success) {
+          // Mark newly added items as synced
+          setEntries(prev => {
+            const updated = prev.map(e => createdItems.some(c => c.id === e.id) ? { ...e, syncStatus: 'synced' as const } : e);
+            saveEntriesToStorage(updated);
+            return updated;
+          });
+          const nowStr = new Date().toLocaleTimeString('tr-TR');
+          setSyncConfig(prev => {
+            const updated = {
+              ...prev,
+              googleWebhookUrl: effectiveWebhook,
+              lastSyncAttempt: nowStr,
+              lastSyncStatus: 'success' as const,
+              lastSyncMessage: `${createdItems.length} yeni imalat kaydı Google E-Tabloya anında yansıtıldı.`
+            };
+            saveSyncConfig(updated);
+            return updated;
+          });
+          addLog(`✅ ${createdItems.length} yeni imalat kaydı Google E-Tabloya anında yansıtıldı!`, 'success');
+        }
+      } catch (err: any) {
+        addLog(`⚠️ Google E-Tablo aktarımı arka planda kuyruğa alındı: ${err?.message || 'Ağ uyarısı'}`, 'warning');
+      }
     }
   };
 
