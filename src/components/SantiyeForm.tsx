@@ -492,28 +492,18 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
       return;
     }
 
-    if (!projeAdi.trim()) {
-      showNotification('⚠️ Lütfen Proje Adı bilgisini giriniz!', 'error');
+    const finalProjeID = (projeID.trim() || projeAdi.trim());
+    if (!finalProjeID) {
+      showNotification('⚠️ Lütfen Proje ID / Kodu bilgisini giriniz!', 'error');
       return;
     }
 
-    if (isSheff && !projeID.trim()) {
-      showNotification('⚠️ Sheff olarak lütfen Proje ID bilgisini giriniz!', 'error');
-      return;
-    }
-
-    if (isSheff && !projeTipi) {
-      showNotification('⚠️ Sheff olarak lütfen Proje Tipini (Hasar, Pasif, Bakım) seçiniz!', 'error');
-      return;
-    }
-
-    const finalProjeID = isSheff ? projeID.trim() : 'Atanmadı';
     const finalProjeTipi: ProjeTipi = isSheff ? projeTipi : '';
 
     // Bir proje ID için öncesi ve sonrası için birer foto yeterlidir (yalnızca ilk poz satırına kaydedilir)
     const newEntries: Omit<SantiyeEntry, 'id' | 'createdAt' | 'syncStatus'>[] = stagedLines.map((line, index) => ({
       date,
-      projeAdi: projeAdi.trim(),
+      projeAdi: finalProjeID,
       projeID: finalProjeID,
       projeTipi: finalProjeTipi,
       santral: santral.trim(),
@@ -626,62 +616,33 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
             </div>
           </div>
 
-          {/* Üst Satır: Proje Adı, Proje ID (Sadece Sheff), Proje Tipi (Sadece Sheff) */}
+          {/* Üst Satır: Proje ID (Google Sheets Sütun 2) & Proje Tipi */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 sm:gap-3 bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs">
-            {/* Proje Adı - Kablo Ekipleri ve Sheff Girebilir */}
-            <div className="md:col-span-5">
+            {/* Proje ID - Google Sheets Sütun B */}
+            <div className="md:col-span-7">
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 font-bold">
                   <Tag className="w-3.5 h-3.5 text-blue-600" />
-                  Proje Adı
+                  Proje ID / Kodu
                 </span>
-                <span className="text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded">
-                  Kablo Ekibi / Sheff
+                <span className="text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.2 rounded">
+                  Google E-Tablo Sütun B
                 </span>
               </label>
               <input
                 type="text"
-                value={projeAdi}
-                onChange={e => setProjeAdi(e.target.value)}
-                placeholder="Proje adını giriniz (Örn: Moda Cad. Abone Tesisi)"
-                className="w-full px-3 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-white border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-bold text-slate-900"
+                value={projeID || projeAdi}
+                onChange={e => {
+                  setProjeID(e.target.value);
+                  setProjeAdi(e.target.value);
+                }}
+                placeholder="Örn: PRJ-2026-IST veya Şantiye No"
+                className="w-full px-3 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-white border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono font-bold text-slate-900"
               />
             </div>
 
-            {/* Proje ID - Sadece Sheff Girebilir */}
-            <div className="md:col-span-3">
-              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
-                <span>Proje ID</span>
-                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded flex items-center gap-0.5 ${
-                  isSheff
-                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                    : 'bg-slate-200 text-slate-600'
-                }`}>
-                  {!isSheff && <Lock className="w-2.5 h-2.5" />}
-                  Sadece Sheff
-                </span>
-              </label>
-              {isSheff ? (
-                <input
-                  type="text"
-                  value={projeID}
-                  onChange={e => setProjeID(e.target.value)}
-                  placeholder="Örn: PRJ-2026-IST"
-                  className="w-full px-3 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-amber-50/40 border border-amber-400 rounded-lg focus:ring-2 focus:ring-amber-500 font-mono font-bold text-slate-900"
-                />
-              ) : (
-                <div
-                  className="w-full px-3 py-2.5 sm:py-1.5 text-sm sm:text-xs bg-slate-100 border border-slate-300 rounded-lg text-slate-500 font-medium flex items-center justify-between cursor-not-allowed select-none"
-                  title="Proje ID girişi sadece Sheff tarafından yapılabilir"
-                >
-                  <span>Sheff Tarafından Girilecek</span>
-                  <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                </div>
-              )}
-            </div>
-
             {/* Proje Tipi (Hasar / Pasif / Bakım) - Sadece Sheff Seçebilir */}
-            <div className="md:col-span-4">
+            <div className="md:col-span-5">
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
                 <span>Proje Tipi (Hasar / Pasif / Bakım)</span>
                 <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded flex items-center gap-0.5 ${
@@ -690,7 +651,7 @@ export default function SantiyeForm({ currentUser, onAddEntry, onViewDashboard, 
                     : 'bg-slate-200 text-slate-600'
                 }`}>
                   {!isSheff && <Lock className="w-2.5 h-2.5" />}
-                  Sadece Sheff
+                  {isSheff ? 'Sheff Yetkisi' : 'Otomatik / Sheff'}
                 </span>
               </label>
               <div className="grid grid-cols-3 gap-1.5">
