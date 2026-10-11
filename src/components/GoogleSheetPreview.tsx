@@ -173,9 +173,8 @@ export default function GoogleSheetPreview({
                     {rIdx + 1}
                   </td>
 
-                  {/* Columns */}
+                  {/* Columns (22 Sütun, Proje ID doğrudan 2. sütundur) */}
                   <td className="py-2 px-3 border-r border-slate-200 font-mono text-slate-600 whitespace-nowrap">{rowData['Tarih']}</td>
-                  <td className="py-2 px-3 border-r border-slate-200 font-bold text-slate-900 whitespace-nowrap">{rowData['Proje Adı']}</td>
                   <td className="py-2 px-3 border-r border-slate-200 font-bold text-blue-700 whitespace-nowrap">{rowData['Proje ID']}</td>
                   <td className="py-2 px-3 border-r border-slate-200 font-bold text-center whitespace-nowrap">{rowData['Proje Tipi']}</td>
                   <td className="py-2 px-3 border-r border-slate-200 font-medium whitespace-nowrap">{rowData['Santral']}</td>
