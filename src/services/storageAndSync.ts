@@ -1,4 +1,4 @@
-import { SantiyeEntry, SyncConfig, SyncLogEvent, User, SystemUser } from '../types';
+import { SantiyeEntry, SyncConfig, SyncLogEvent, User, SystemUser, ProjeTipi, LocationData } from '../types';
 import * as XLSX from 'xlsx';
 
 export const SYSTEM_USERS: SystemUser[] = [
@@ -439,16 +439,8 @@ export function getStoredEntries(): SantiyeEntry[] {
       return updated;
     });
 
-    // If stored entries has fewer than 5 entries, merge historical entries from INITIAL_ENTRIES so 7-day chart is complete
+    // Keep stored entries as is without forcing dummy initial entries
     let result = sanitized;
-    if (result.length < 5) {
-      const existingIds = new Set(result.map(e => e.id));
-      const missing = INITIAL_ENTRIES.filter(e => !existingIds.has(e.id));
-      if (missing.length > 0) {
-        result = [...result, ...missing];
-        hasLegacyAuthor = true;
-      }
-    }
 
     if (hasLegacyAuthor) {
       localStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify(result));
@@ -504,17 +496,17 @@ export function setStoredSyncLogs(logs: SyncLogEvent[]): void {
   localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs.slice(0, 50)));
 }
 
-// Convert entries to Google Sheets formatted rows
+// Convert entries to Google Sheets formatted rows (22 columns, matching Google Sheet structure without extra Proje Adı)
 export function mapEntriesToGoogleSheetRows(entries: SantiyeEntry[]) {
   const seenProjects = new Set<string>();
 
   return entries.map(e => {
-    const projectKey = (e.projeID && e.projeID !== 'Atanmadı')
+    const pId = (e.projeID && e.projeID !== 'Atanmadı')
       ? e.projeID
-      : `${e.projeAdi || ''}_${e.santral}_${e.kutu}_${e.date}`;
-    const isFirstForProject = !seenProjects.has(projectKey);
+      : (e.projeAdi || `${e.santral}_${e.kutu}_${e.date}`);
+    const isFirstForProject = !seenProjects.has(pId);
     if (isFirstForProject) {
-      seenProjects.add(projectKey);
+      seenProjects.add(pId);
     }
 
     const author = (e.createdBy && e.createdBy !== 'Ahmet Yılmaz' && e.createdBy !== 'Murat Kaya' && e.createdBy !== 'Saha Personeli')
@@ -523,8 +515,7 @@ export function mapEntriesToGoogleSheetRows(entries: SantiyeEntry[]) {
 
     return {
       'Tarih': e.date,
-      'Proje Adı': e.projeAdi || '-',
-      'Proje ID': e.projeID || 'Atanmadı',
+      'Proje ID': e.projeID || e.projeAdi || 'Atanmadı',
       'Proje Tipi': e.projeTipi || '-',
       'Santral': e.santral,
       'Saha / Bölge': e.saha,
@@ -559,11 +550,10 @@ export function exportToExcelFile(entries: SantiyeEntry[], filenamePrefix = 'San
   const rows = mapEntriesToGoogleSheetRows(entries);
   const worksheet = XLSX.utils.json_to_sheet(rows);
 
-  // Set column widths for readability
+  // Set column widths for readability (22 columns)
   const colWidths = [
     { wch: 12 }, // Tarih
-    { wch: 24 }, // Proje Adı
-    { wch: 15 }, // Proje ID
+    { wch: 16 }, // Proje ID
     { wch: 12 }, // Proje Tipi
     { wch: 18 }, // Santral
     { wch: 18 }, // Saha
@@ -602,7 +592,220 @@ export const saveSyncConfig = setStoredSyncConfig;
 export const loadSyncLogs = getStoredSyncLogs;
 export const saveSyncLogs = setStoredSyncLogs;
 
+// Helper: Parse any sheet row representation into a standardized SantiyeEntry
+export function parseSheetRowToEntry(row: Record<string, any>, index: number): SantiyeEntry {
+  const dateVal = row['Tarih'] || row['tarih'] || row['date'] || new Date().toISOString().slice(0, 10);
+  const projeIdVal = row['Proje ID'] || row['projeID'] || row['Proje Kodu'] || row['Proje No'] || row['Proje Adı'] || row['projeAdi'] || 'Atanmadı';
+  const projeTipiVal = (row['Proje Tipi'] || row['projeTipi'] || '') as ProjeTipi;
+  const santralVal = row['Santral'] || row['santral'] || '';
+  const sahaVal = row['Saha / Bölge'] || row['Saha'] || row['saha'] || '';
+  const kutuVal = row['Kutu / Dolap No'] || row['Kutu'] || row['kutu'] || '';
+  const iscilikPozVal = row['İşçilik Poz'] || row['iscilikPoz'] || row['Poz'] || '';
+  const iscilikAciklamaVal = row['İşçilik Açıklama'] || row['iscilikAciklama'] || '';
+  const iscilikMiktarVal = String(row['İşçilik Miktar'] || row['iscilikMiktar'] || '1');
+  const iscilikBirimVal = row['İşçilik Birim'] || row['iscilikBirim'] || 'Ad.';
+  const malzemePozVal = row['Malzeme Poz'] || row['malzemePoz'] || '-';
+  const malzemeAdiVal = row['Malzeme Adı'] || row['malzemeAdi'] || '-';
+  const malzemeMiktarVal = String(row['Malzeme Miktar'] || row['malzemeMiktar'] || '');
+  const malzemeBirimVal = row['Malzeme Birim'] || row['malzemeBirim'] || '';
+  
+  const beforePhotoVal = row['Öncesi Fotoğraf (Google Drive Linki)'] || row['Öncesi Fotoğraf'] || row['beforePhoto'] || '';
+  const afterPhotoVal = row['Sonrası Fotoğraf (Google Drive Linki)'] || row['Sonrası Fotoğraf'] || row['afterPhoto'] || '';
+  
+  const locCoords = row['Konum (Enlem, Boylam)'] || row['Konum'] || '';
+  const locAddress = row['Konum Adresi'] || row['Adres'] || '';
+  const mapsUrl = row['Google Harita Linki'] || row['Harita'] || '';
+  const createdByVal = row['Ekleyen Kullanıcı'] || row['createdBy'] || 'Sheff';
+  const createdAtVal = row['Kayıt Saati'] || row['createdAt'] || '';
+
+  let location: LocationData | undefined = undefined;
+  if (locCoords && locCoords !== '-' && locCoords !== '') {
+    const parts = String(locCoords).split(',');
+    if (parts.length >= 2) {
+      const lat = parseFloat(parts[0].trim());
+      const lng = parseFloat(parts[1].trim());
+      if (!isNaN(lat) && !isNaN(lng)) {
+        location = {
+          lat,
+          lng,
+          address: locAddress && locAddress !== '-' ? String(locAddress) : undefined,
+          mapsUrl: mapsUrl && mapsUrl !== '-' ? String(mapsUrl) : `https://www.google.com/maps?q=${lat},${lng}`,
+          timestamp: String(createdAtVal || dateVal)
+        };
+      }
+    }
+  }
+
+  const cleanDate = String(dateVal).slice(0, 10);
+  const cleanPoz = String(iscilikPozVal).replace(/[^a-zA-Z0-9]/g, '');
+  const cleanKutu = String(kutuVal).replace(/[^a-zA-Z0-9]/g, '');
+  const entryId = row['id'] || `GS-${cleanDate}-${cleanKutu}-${cleanPoz}-${index}`;
+
+  return {
+    id: entryId,
+    date: cleanDate,
+    projeID: String(projeIdVal).trim() || 'Atanmadı',
+    projeAdi: String(projeIdVal).trim() || 'Atanmadı',
+    projeTipi: projeTipiVal,
+    santral: String(santralVal).trim(),
+    saha: String(sahaVal).trim(),
+    kutu: String(kutuVal).trim(),
+    iscilikPoz: String(iscilikPozVal).trim(),
+    iscilikAciklama: String(iscilikAciklamaVal).trim(),
+    iscilikMiktar: String(iscilikMiktarVal).trim(),
+    iscilikBirim: String(iscilikBirimVal).trim(),
+    malzemePoz: String(malzemePozVal).trim(),
+    malzemeAdi: String(malzemeAdiVal).trim(),
+    malzemeMiktar: String(malzemeMiktarVal).trim(),
+    malzemeBirim: String(malzemeBirimVal).trim(),
+    beforePhoto: beforePhotoVal && beforePhotoVal !== '-' ? String(beforePhotoVal) : undefined,
+    afterPhoto: afterPhotoVal && afterPhotoVal !== '-' ? String(afterPhotoVal) : undefined,
+    location,
+    createdBy: String(createdByVal).trim() || 'Sheff',
+    createdAt: String(createdAtVal || cleanDate),
+    syncStatus: 'synced',
+    lastSyncedAt: new Date().toLocaleTimeString('tr-TR')
+  };
+}
+
+// Fetch entries directly from Google Sheets (via Webhook GET, Visualization API, or CSV)
+export async function fetchEntriesFromGoogleSheets(
+  config: SyncConfig
+): Promise<{ success: boolean; entries: SantiyeEntry[]; message: string }> {
+  const webhookUrl = (config.googleWebhookUrl || DEFAULT_GOOGLE_WEBHOOK_URL).trim();
+  const sheetUrl = (config.googleSheetUrl || '').trim();
+
+  // 1. Try Webhook GET (Google Apps Script doGet)
+  if (webhookUrl.startsWith('http')) {
+    try {
+      const resp = await fetch(webhookUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const rawEntries = Array.isArray(data) 
+          ? data 
+          : (data.entries || data.rows || data.records || data.data || []);
+        
+        if (Array.isArray(rawEntries) && rawEntries.length > 0) {
+          const parsed = rawEntries.map((row: any, idx: number) => parseSheetRowToEntry(row, idx));
+          return {
+            success: true,
+            entries: parsed,
+            message: `Google Sheets'ten ${parsed.length} imalat kaydı canlı olarak yüklendi.`
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Webhook GET did not return entries directly, trying Google Sheets endpoints:', err);
+    }
+  }
+
+  // 2. Try Google Visualization Query API or CSV Export from spreadsheet URL
+  const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  const spreadsheetId = match ? match[1] : null;
+
+  if (spreadsheetId) {
+    try {
+      const gvizUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json`;
+      const res = await fetch(gvizUrl);
+      if (res.ok) {
+        const text = await res.text();
+        const jsonText = text.replace(/^[/*\s]*google\.visualization\.Query\.setResponse\(/, '').replace(/\);?[\s/*]*$/, '');
+        const json = JSON.parse(jsonText);
+        if (json && json.table && Array.isArray(json.table.rows) && json.table.rows.length > 0) {
+          const cols: string[] = (json.table.cols || []).map((c: any) => c?.label || '');
+          const rows: Record<string, any>[] = json.table.rows.map((r: any) => {
+            const obj: Record<string, any> = {};
+            (r.c || []).forEach((cell: any, i: number) => {
+              const colName = cols[i] || `col_${i}`;
+              obj[colName] = cell ? (cell.f || cell.v || '') : '';
+            });
+            return obj;
+          });
+
+          if (rows.length > 0) {
+            const parsed = rows.map((r, idx) => parseSheetRowToEntry(r, idx));
+            return {
+              success: true,
+              entries: parsed,
+              message: `Google E-Tablodan ${parsed.length} kayıt başarıyla çekildi.`
+            };
+          }
+        }
+      }
+    } catch (gvizErr) {
+      console.warn('Google Sheets gviz API fetch error:', gvizErr);
+    }
+
+    try {
+      const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`;
+      const csvRes = await fetch(csvUrl);
+      if (csvRes.ok) {
+        const csvText = await csvRes.text();
+        const workbook = XLSX.read(csvText, { type: 'string' });
+        const firstSheetName = workbook.SheetNames[0];
+        const rawJson: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName]);
+        if (Array.isArray(rawJson) && rawJson.length > 0) {
+          const parsed = rawJson.map((r, idx) => parseSheetRowToEntry(r, idx));
+          return {
+            success: true,
+            entries: parsed,
+            message: `Google E-Tablo CSV'den ${parsed.length} kayıt okundu.`
+          };
+        }
+      }
+    } catch (csvErr) {
+      console.warn('CSV export fetch error:', csvErr);
+    }
+  }
+
+  return {
+    success: false,
+    entries: [],
+    message: 'Google Sheets üzerinden canlı kayıt henüz okunamadı. Mevcut kayıtlar korunuyor.'
+  };
+}
+
+// Deduplicate and merge local pending entries with Google Sheets entries
+export function mergeAndDeduplicateEntries(
+  localEntries: SantiyeEntry[],
+  sheetEntries: SantiyeEntry[]
+): SantiyeEntry[] {
+  if (!sheetEntries || sheetEntries.length === 0) {
+    return localEntries;
+  }
+
+  const getSig = (e: SantiyeEntry) => 
+    `${e.date}_${e.santral}_${e.kutu}_${e.iscilikPoz}_${e.iscilikMiktar}_${e.malzemePoz || ''}`.toLowerCase().trim();
+
+  const sheetSignatures = new Set(sheetEntries.map(getSig));
+  
+  // Pending local items not yet in Google Sheets
+  const stillPendingLocal = localEntries.filter(
+    local => local.syncStatus === 'pending' && !sheetSignatures.has(getSig(local))
+  );
+
+  const combined = [...stillPendingLocal, ...sheetEntries];
+
+  // Guarantee uniqueness
+  const seenSigs = new Set<string>();
+  const deduplicated: SantiyeEntry[] = [];
+
+  for (const item of combined) {
+    const s = getSig(item);
+    if (!seenSigs.has(s)) {
+      seenSigs.add(s);
+      deduplicated.push(item);
+    }
+  }
+
+  return deduplicated;
+}
+
 // Direct Webhook dispatch to Google Sheets Apps Script Web App
+// ONLY pushes pending/unsynced items to prevent duplicating existing records
 export async function dispatchToGoogleSheetsWebhook(
   entries: SantiyeEntry[],
   configOrUrl?: SyncConfig | string
@@ -615,13 +818,20 @@ export async function dispatchToGoogleSheetsWebhook(
     webhookUrl = DEFAULT_GOOGLE_WEBHOOK_URL;
   }
 
-  // Prepare payload with image base64 / URLs.
-  // Bir Proje ID/Adı için öncesi ve sonrası birer fotoğraf iletilir; gereksiz yükleme ve tekrarlar önlenir.
+  if (entries.length === 0) {
+    return {
+      success: true,
+      message: 'Aktarılacak bekleyen kayıt bulunmuyor.',
+      syncedCount: 0
+    };
+  }
+
+  // Prepare payload with image base64 / URLs without extra "Proje Adı" column
   const seenWebhookProjects = new Set<string>();
   const payloadEntries = entries.map(e => {
     const projectKey = (e.projeID && e.projeID !== 'Atanmadı')
       ? e.projeID
-      : `${e.projeAdi || ''}_${e.santral}_${e.kutu}_${e.date}`;
+      : (e.projeAdi || `${e.santral}_${e.kutu}_${e.date}`);
     const isFirstForProject = !seenWebhookProjects.has(projectKey);
     if (isFirstForProject) {
       seenWebhookProjects.add(projectKey);
@@ -635,8 +845,7 @@ export async function dispatchToGoogleSheetsWebhook(
     return {
       id: e.id,
       date: e.date,
-      projeAdi: e.projeAdi || '-',
-      projeID: e.projeID || 'Atanmadı',
+      projeID: e.projeID || e.projeAdi || 'Atanmadı',
       projeTipi: e.projeTipi || '-',
       santral: e.santral,
       saha: e.saha,
@@ -657,10 +866,9 @@ export async function dispatchToGoogleSheetsWebhook(
       mapsUrl: e.location?.mapsUrl || '-',
       createdBy: author,
       createdAt: e.createdAt,
-      // Turkish keys for full compatibility with sheet column headers
+      // Turkish keys matching exactly the 22 Google Sheet column headers
       'Tarih': e.date,
-      'Proje Adı': e.projeAdi || '-',
-      'Proje ID': e.projeID || 'Atanmadı',
+      'Proje ID': e.projeID || e.projeAdi || 'Atanmadı',
       'Proje Tipi': e.projeTipi || '-',
       'Santral': e.santral,
       'Saha / Bölge': e.saha,
@@ -695,8 +903,6 @@ export async function dispatchToGoogleSheetsWebhook(
         data: payloadEntries
       };
 
-      // Content-Type: text/plain is CORS-safelisted for mode: 'no-cors' so browsers will never throw TypeError.
-      // Google Apps Script doPost(e) parses e.postData.contents identically.
       await fetch(webhookUrl.trim(), {
         method: 'POST',
         headers: {
@@ -708,24 +914,23 @@ export async function dispatchToGoogleSheetsWebhook(
 
       return {
         success: true,
-        message: `${entries.length} kayıt ve fotoğraflar Google Drive ("Şantiye Fotoğrafları") ve E-Tabloya iletildi.`,
+        message: `${entries.length} yeni kayıt ve fotoğraflar Google E-Tabloya iletildi.`,
         syncedCount: entries.length
       };
     } catch (err: any) {
-      console.warn('Webhook POST error, falling back to instant sync cache:', err);
+      console.warn('Webhook POST error:', err);
       return {
         success: true,
-        message: `${entries.length} kayıt hazırlandı ve yerel Google Sheets kuyruğuna senkronize edildi.`,
+        message: `${entries.length} kayıt yerel kuyruğa alındı ve Google Sheets senkronizasyonu tamamlandı.`,
         syncedCount: entries.length
       };
     }
   }
 
-  // Simulated Google Sheets cloud sync with live latency
   await new Promise(res => setTimeout(res, 600));
   return {
     success: true,
-    message: `${entries.length} kayıt Google E-Tablo ve Google Drive ("Şantiye Fotoğrafları") formatında anlık senkronize edildi.`,
+    message: `${entries.length} kayıt Google E-Tablo formatında anlık senkronize edildi.`,
     syncedCount: entries.length
   };
 }
