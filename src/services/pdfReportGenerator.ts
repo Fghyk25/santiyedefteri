@@ -99,7 +99,8 @@ export function generateWeeklyPdfReport(
     }
     dailyAggregation[dateKey].entriesCount += 1;
     dailyAggregation[dateKey].laborHours += hours;
-    if (e.projeAdi) dailyAggregation[dateKey].projects.add(e.projeAdi);
+    if (e.projeID && e.projeID !== 'Atanmadı') dailyAggregation[dateKey].projects.add(e.projeID);
+    else if (e.projeAdi) dailyAggregation[dateKey].projects.add(e.projeAdi);
 
     // Job breakdown
     if (e.iscilikPoz) {
