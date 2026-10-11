@@ -412,8 +412,7 @@ export default function SantiyeTable({
           <thead className="bg-slate-900 text-white text-[11px] uppercase tracking-wider sticky top-0 z-10 font-bold">
             <tr>
               <th className="py-3 px-3">Tarih</th>
-              <th className="py-3 px-3 min-w-[150px]">Proje Adı</th>
-              <th className="py-3 px-3">Proje ID & Tipi (Sheff)</th>
+              <th className="py-3 px-3 min-w-[160px]">Proje ID & Tipi</th>
               <th className="py-3 px-3">Santral / Saha</th>
               <th className="py-3 px-2">Kutu</th>
               <th className="py-3 px-2">İş Poz</th>
@@ -434,7 +433,7 @@ export default function SantiyeTable({
           <tbody className="divide-y divide-slate-200 font-medium">
             {filteredEntries.length === 0 ? (
               <tr>
-                <td colSpan={18} className="py-12 text-center text-slate-400">
+                <td colSpan={17} className="py-12 text-center text-slate-400">
                   <p className="text-sm font-semibold">Kayıt bulunamadı</p>
                   <p className="text-xs">Yukarıdaki formdan yeni imalat kaydı ekleyebilirsiniz.</p>
                 </td>
@@ -453,9 +452,6 @@ export default function SantiyeTable({
                 return (
                   <tr key={row.id} className="hover:bg-blue-50/40 transition">
                     <td className="py-2.5 px-3 font-mono whitespace-nowrap text-slate-600">{row.date}</td>
-                    <td className="py-2.5 px-3 font-bold text-slate-900">
-                      {row.projeAdi || `${row.santral} İmalatı`}
-                    </td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <span className={`font-bold text-xs ${
@@ -463,7 +459,7 @@ export default function SantiyeTable({
                             ? 'text-blue-700 font-mono'
                             : 'text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 text-[11px]'
                         }`}>
-                          {row.projeID && row.projeID !== 'Atanmadı' ? row.projeID : 'Atanmadı'}
+                          {row.projeID && row.projeID !== 'Atanmadı' ? row.projeID : (row.projeAdi || 'Atanmadı')}
                         </span>
                         {row.projeTipi && (
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${PROJE_TIPI_BADGE[row.projeTipi] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
