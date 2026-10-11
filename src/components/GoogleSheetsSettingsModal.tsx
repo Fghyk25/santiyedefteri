@@ -62,16 +62,16 @@ function doPost(e) {
     var folders = DriveApp.getFoldersByName(folderName);
     var targetFolder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
     
-    // 2. Tablo başlıkları henüz yoksa ekle ve biçimlendir
+    // 2. Tablo başlıkları henüz yoksa ekle ve biçimlendir (22 Sütun - Proje ID doğrudan 2. sütundur)
     if (sheet.getLastRow() === 0) {
       sheet.appendRow([
-        'Tarih', 'Proje Adı', 'Proje ID', 'Proje Tipi', 'Santral', 'Saha / Bölge', 'Kutu / Dolap No',
+        'Tarih', 'Proje ID', 'Proje Tipi', 'Santral', 'Saha / Bölge', 'Kutu / Dolap No',
         'İşçilik Poz', 'İşçilik Açıklama', 'İşçilik Miktar', 'İşçilik Birim',
         'Malzeme Poz', 'Malzeme Adı', 'Malzeme Miktar', 'Malzeme Birim',
         'Öncesi Fotoğraf (Google Drive Linki)', 'Sonrası Fotoğraf (Google Drive Linki)', 'Konum (Enlem, Boylam)',
         'Konum Adresi', 'Google Harita Linki', 'Ekleyen Kullanıcı', 'Kayıt Saati', 'Senkron Durumu'
       ]);
-      var headerRange = sheet.getRange(1, 1, 1, 23);
+      var headerRange = sheet.getRange(1, 1, 1, 22);
       headerRange.setBackground('#1e293b').setFontColor('#ffffff').setFontWeight('bold');
     }
     
@@ -82,7 +82,7 @@ function doPost(e) {
       }
       try {
         var blob;
-        var pId = (row['Proje ID'] || row.projeID || 'PROJE').toString().replace(/[^a-zA-Z0-9_-]/g, '_');
+        var pId = (row['Proje ID'] || row.projeID || row['Proje Adı'] || row.projeAdi || 'PROJE').toString().replace(/[^a-zA-Z0-9_-]/g, '_');
         var kNo = (row['Kutu / Dolap No'] || row.kutu || 'KUTU').toString().replace(/[^a-zA-Z0-9_-]/g, '_');
         var timeStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'GMT+3', 'yyyyMMdd_HHmmss');
         var fileName = pId + '_' + kNo + '_' + tag + '_' + timeStr + '.jpg';
@@ -117,13 +117,37 @@ function doPost(e) {
       }
     }
     
-    // 4. Her satırı işle ve Google E-Tabloya yaz
-    // BİR PROJE ID İÇİN ÖNCESİ VE SONRASI İÇİN BİRER FOTOĞRAF YETERLİDİR.
-    // Proje ID'ye göre fotoğraflar hafızaya alınır; aynı projenin alt satırlarında fotoğraflar tekrarlanmaz.
+    // 4. Tablodaki mevcut kayıt imzalarını topla (Mevcut kayıtların tekrarlanmasını önle)
+    var lastRow = sheet.getLastRow();
+    var existingSignatures = {};
+    if (lastRow > 1) {
+      var existingData = sheet.getRange(2, 1, lastRow - 1, 14).getValues();
+      for (var k = 0; k < existingData.length; k++) {
+        var r = existingData[k];
+        // Tarih + Kutu + İş Poz + İş Miktar + M.Poz
+        var sig = (r[0] + '_' + r[5] + '_' + r[6] + '_' + r[8] + '_' + r[10]).toString().toLowerCase().trim();
+        existingSignatures[sig] = true;
+      }
+    }
+
     var processedProjects = {};
+    var insertedCount = 0;
 
     entries.forEach(function(row) {
-      var pId = (row['Proje ID'] || row.projeID || 'PROJE').toString().trim();
+      var rowDate = (row['Tarih'] || row.date || '').toString().slice(0, 10);
+      var rowKutu = (row['Kutu / Dolap No'] || row.kutu || '').toString().trim();
+      var rowPoz = (row['İşçilik Poz'] || row.iscilikPoz || '').toString().trim();
+      var rowQty = (row['İşçilik Miktar'] || row.iscilikMiktar || '').toString().trim();
+      var rowMalz = (row['Malzeme Poz'] || row.malzemePoz || '').toString().trim();
+      var checkSig = (rowDate + '_' + rowKutu + '_' + rowPoz + '_' + rowQty + '_' + rowMalz).toLowerCase().trim();
+
+      // Zaten Google Sheets'te varsa atla (Tekrarı engelle)
+      if (existingSignatures[checkSig]) {
+        return;
+      }
+      existingSignatures[checkSig] = true;
+
+      var pId = (row['Proje ID'] || row.projeID || row['Proje Adı'] || row.projeAdi || 'Atanmadı').toString().trim();
       var rawBefore = row['beforePhoto'] || row['Öncesi Fotoğraf'];
       var rawAfter = row['afterPhoto'] || row['Sonrası Fotoğraf'];
       
@@ -140,25 +164,22 @@ function doPost(e) {
         }
         processedProjects[pId] = true;
       } else {
-        // Bu Proje ID için fotoğraflar ilk satırda zaten eklendi.
-        // Alt satırlarda aynı fotolar tekrarlanmaz:
         beforeDriveLink = '-';
         afterDriveLink = '-';
       }
       
       sheet.appendRow([
-        row['Tarih'] || row.date || '',
-        row['Proje Adı'] || row.projeAdi || '-',
-        row['Proje ID'] || row.projeID || 'Atanmadı',
+        rowDate,
+        pId,
         row['Proje Tipi'] || row.projeTipi || '-',
         row['Santral'] || row.santral || '',
         row['Saha / Bölge'] || row.saha || '',
-        row['Kutu / Dolap No'] || row.kutu || '',
-        row['İşçilik Poz'] || row.iscilikPoz || '',
+        rowKutu,
+        rowPoz,
         row['İşçilik Açıklama'] || row.iscilikAciklama || '',
-        row['İşçilik Miktar'] || row.iscilikMiktar || '',
+        rowQty,
         row['İşçilik Birim'] || row.iscilikBirim || '',
-        row['Malzeme Poz'] || row.malzemePoz || '-',
+        rowMalz || '-',
         row['Malzeme Adı'] || row.malzemeAdi || '-',
         row['Malzeme Miktar'] || row.malzemeMiktar || '-',
         row['Malzeme Birim'] || row.malzemeBirim || '-',
@@ -171,13 +192,14 @@ function doPost(e) {
         row['Kayıt Saati'] || (new Date().toLocaleTimeString('tr-TR')),
         'Senkronize Edildi'
       ]);
+      insertedCount++;
     });
     
     return ContentService.createTextOutput(JSON.stringify({ 
       status: 'success', 
-      count: entries.length,
-      folder: folderName,
-      message: entries.length + ' satır işlendi. Fotoğraflar Proje ID başına tekil olarak Google Drive ' + folderName + ' klasörüne kaydedildi.'
+      insertedCount: insertedCount,
+      totalCount: sheet.getLastRow() - 1,
+      message: insertedCount + ' yeni satır eklendi. Tekrarlanan kayıtlar önlendi.'
     })).setMimeType(ContentService.MimeType.JSON);
     
   } catch (globalErr) {
@@ -188,14 +210,39 @@ function doPost(e) {
   }
 }
 
-// Tarayıcıdan test amaçlı tıklandığında servis durumunu döndürür
+// Google E-Tablodaki tüm satırları Dashboard'a canlı olarak okuyan GET servisi
 function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({
-    status: 'active',
-    service: 'Telekom Şantiye Google Sheets & Drive Webhook Aktif',
-    targetDriveFolder: 'Şantiye Fotoğrafları',
-    photoRule: 'Proje ID başına tekil öncesi ve sonrası fotoğraf kaydedilir'
-  })).setMimeType(ContentService.MimeType.JSON);
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'success',
+        count: 0,
+        entries: []
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    var headers = data[0];
+    var entries = [];
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var item = {};
+      for (var h = 0; h < headers.length; h++) {
+        item[headers[h]] = row[h];
+      }
+      entries.push(item);
+    }
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'success',
+      count: entries.length,
+      entries: entries
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'error',
+      message: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
 }`;
 
   if (!isOpen) return null;
