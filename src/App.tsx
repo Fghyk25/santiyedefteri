@@ -11,6 +11,8 @@ import {
   loadSyncConfig, 
   saveSyncConfig,
   dispatchToGoogleSheetsWebhook,
+  fetchEntriesFromGoogleSheets,
+  mergeAndDeduplicateEntries,
   DEFAULT_SYNC_CONFIG,
   DEFAULT_GOOGLE_WEBHOOK_URL,
   SYSTEM_USERS
@@ -123,50 +125,86 @@ export default function App() {
     setSyncLogs(prev => [newLog, ...prev.slice(0, 40)]);
   }, []);
 
-  // Trigger Google Sheets Synchronization
+  // Initial load of live records directly from Google Sheets into Dashboard
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveRecords = async () => {
+      try {
+        const res = await fetchEntriesFromGoogleSheets(syncConfig);
+        if (isMounted && res.success && res.entries.length > 0) {
+          setEntries(prev => {
+            const merged = mergeAndDeduplicateEntries(prev, res.entries);
+            saveEntriesToStorage(merged);
+            return merged;
+          });
+          addLog(`📥 Google E-Tablodan ${res.entries.length} kayıt Dashboard'a aktarıldı.`, 'success');
+        }
+      } catch (err) {
+        console.warn('Initial Google Sheets fetch error:', err);
+      }
+    };
+
+    fetchLiveRecords();
+    return () => { isMounted = false; };
+  }, []);
+
+  // Trigger Google Sheets Synchronization (Two-way sync without duplicate entries)
   const handleTriggerSync = useCallback(async () => {
     if (isSyncing) return;
     setIsSyncing(true);
 
     const pendingItems = entries.filter(e => e.syncStatus === 'pending');
-    const itemsToSync = pendingItems.length > 0 ? pendingItems : entries;
 
-    addLog(
-      pendingItems.length > 0 
-        ? `${pendingItems.length} bekleyen imalat kaydı Google E-Tabloya iletiliyor...` 
-        : `Tüm şantiye kayıtları (${entries.length} satır) Google E-Tablo ile eşitleniyor...`, 
-      'info'
-    );
-
-    try {
-      const effectiveConfig: SyncConfig = {
-        ...syncConfig,
-        googleWebhookUrl: syncConfig.googleWebhookUrl || DEFAULT_GOOGLE_WEBHOOK_URL
-      };
-      const result = await dispatchToGoogleSheetsWebhook(itemsToSync, effectiveConfig);
-
-      if (result.success) {
-        // Mark all as synced
-        setEntries(prev => {
-          const updated = prev.map(e => ({ ...e, syncStatus: 'synced' as const }));
-          saveEntriesToStorage(updated);
-          return updated;
-        });
-        const nowStr = new Date().toLocaleTimeString('tr-TR');
-        const updatedConfig = { 
-          ...effectiveConfig, 
-          lastSyncAttempt: nowStr,
-          lastSyncStatus: 'success' as const,
-          lastSyncMessage: `${itemsToSync.length} kayıt Google E-Tabloya başarıyla yansıtıldı.`
+    // 1. If there are new pending local entries, ONLY send those pending entries to Google Sheets
+    if (pendingItems.length > 0) {
+      addLog(`${pendingItems.length} bekleyen yeni imalat kaydı Google E-Tabloya iletiliyor...`, 'info');
+      try {
+        const effectiveConfig: SyncConfig = {
+          ...syncConfig,
+          googleWebhookUrl: syncConfig.googleWebhookUrl || DEFAULT_GOOGLE_WEBHOOK_URL
         };
-        setSyncConfig(updatedConfig);
-        saveSyncConfig(updatedConfig);
-        addLog(`✅ Google Sheets senkronizasyonu tamamlandı (${itemsToSync.length} satır Google E-Tabloya yansıtıldı).`, 'success');
-      } else {
-        addLog(`⚠️ Senkron uyarısı: ${result.message}`, 'warning');
+        const result = await dispatchToGoogleSheetsWebhook(pendingItems, effectiveConfig);
+
+        if (result.success) {
+          setEntries(prev => {
+            const updated = prev.map(e => pendingItems.some(p => p.id === e.id) ? { ...e, syncStatus: 'synced' as const } : e);
+            saveEntriesToStorage(updated);
+            return updated;
+          });
+          addLog(`✅ ${pendingItems.length} yeni imalat kaydı Google E-Tabloya eklendi.`, 'success');
+        } else {
+          addLog(`⚠️ Senkron uyarısı: ${result.message}`, 'warning');
+        }
+      } catch (err: any) {
+        addLog(`❌ Gönderim hatası: ${err.message || 'Ağ hatası'}`, 'error');
       }
-    } catch (err: any) {
-      addLog(`❌ Senkronizasyon hatası: ${err.message || 'Ağ hatası'}`, 'error');
+    } else {
+      addLog(`Google E-Tablodaki güncel kayıtlar taranıyor...`, 'info');
+    }
+
+    // 2. Fetch live rows from Google Sheets into Dashboard (prevents duplicates via signature matching)
+    try {
+      const fetchRes = await fetchEntriesFromGoogleSheets(syncConfig);
+      if (fetchRes.success && fetchRes.entries.length > 0) {
+        setEntries(prev => {
+          const merged = mergeAndDeduplicateEntries(prev, fetchRes.entries);
+          saveEntriesToStorage(merged);
+          return merged;
+        });
+        addLog(`📥 Google E-Tablodan ${fetchRes.entries.length} kayıt Dashboard ile eşitlendi.`, 'success');
+      }
+
+      const nowStr = new Date().toLocaleTimeString('tr-TR');
+      const updatedConfig = { 
+        ...syncConfig, 
+        lastSyncAttempt: nowStr,
+        lastSyncStatus: 'success' as const,
+        lastSyncMessage: `Google Sheets ile eşitlendi (${nowStr}).`
+      };
+      setSyncConfig(updatedConfig);
+      saveSyncConfig(updatedConfig);
+    } catch (fetchErr: any) {
+      addLog(`⚠️ Google E-Tablodan okuma uyarısı: ${fetchErr?.message || 'Ağ hatası'}`, 'warning');
     } finally {
       setIsSyncing(false);
     }
