@@ -53,8 +53,40 @@ export default function GoogleSheetsSettingsModal({
 
 function doPost(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getActiveSheet();
     var data = JSON.parse(e.postData.contents);
+
+    // Eğer Dashboard'dan verileri çekme isteği gelmişse tüm satırları döndür
+    if (data.action === 'get_entries' || data.action === 'read' || data.action === 'read_entries') {
+      var allData = sheet.getDataRange().getValues();
+      if (allData.length <= 1) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: 'success',
+          count: 0,
+          entries: [],
+          spreadsheetUrl: ss.getUrl()
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      var headers = allData[0];
+      var readEntries = [];
+      for (var r = 1; r < allData.length; r++) {
+        var row = allData[r];
+        if (!row || row.every(function(c) { return c === '' || c === null; })) continue;
+        var item = {};
+        for (var h = 0; h < headers.length; h++) {
+          item[headers[h]] = row[h];
+        }
+        readEntries.push(item);
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'success',
+        count: readEntries.length,
+        entries: readEntries,
+        spreadsheetUrl: ss.getUrl()
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     var entries = data.entries || [];
     
     // 1. Google Drive'da "Şantiye Fotoğrafları" klasörünü bul veya oluştur
@@ -213,19 +245,22 @@ function doPost(e) {
 // Google E-Tablodaki tüm satırları Dashboard'a canlı olarak okuyan GET servisi
 function doGet(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getActiveSheet();
     var data = sheet.getDataRange().getValues();
     if (data.length <= 1) {
       return ContentService.createTextOutput(JSON.stringify({
         status: 'success',
         count: 0,
-        entries: []
+        entries: [],
+        spreadsheetUrl: ss.getUrl()
       })).setMimeType(ContentService.MimeType.JSON);
     }
     var headers = data[0];
     var entries = [];
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
+      if (!row || row.every(function(cell) { return cell === '' || cell === null; })) continue;
       var item = {};
       for (var h = 0; h < headers.length; h++) {
         item[headers[h]] = row[h];
@@ -235,7 +270,8 @@ function doGet(e) {
     return ContentService.createTextOutput(JSON.stringify({
       status: 'success',
       count: entries.length,
-      entries: entries
+      entries: entries,
+      spreadsheetUrl: ss.getUrl()
     })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({

@@ -14,6 +14,7 @@ import {
   FileText
 } from 'lucide-react';
 import { SantiyeEntry } from '../types';
+import { normalizeDateValue } from '../services/storageAndSync';
 
 interface WeeklyPerformanceChartProps {
   entries: SantiyeEntry[];
@@ -107,10 +108,11 @@ export default function WeeklyPerformanceChart({ entries, onOpenReportModal }: W
       const dateStr = `${dayNumber} ${monthName}`;
       const isToday = i === 0;
 
-      // Filter entries matching this date (either e.date or e.createdAt starting with isoDate)
+      // Filter entries matching this date (either normalized e.date or e.createdAt starting with isoDate)
       const dayEntries = entries.filter(e => {
         if (!e) return false;
         if (e.date === isoDate) return true;
+        if (normalizeDateValue(e.date) === isoDate) return true;
         if (e.createdAt && e.createdAt.startsWith(isoDate)) return true;
         return false;
       });

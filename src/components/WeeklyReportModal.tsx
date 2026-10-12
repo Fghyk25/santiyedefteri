@@ -18,6 +18,7 @@ import {
 import { ProjeTipi, SantiyeEntry } from '../types';
 import { generateWeeklyPdfReport, ReportFilterOptions } from '../services/pdfReportGenerator';
 import { calculateLaborHours } from './WeeklyPerformanceChart';
+import { normalizeDateValue } from '../services/storageAndSync';
 
 interface WeeklyReportModalProps {
   isOpen: boolean;
@@ -73,7 +74,7 @@ export default function WeeklyReportModal({
   const previewStats = useMemo(() => {
     const filtered = entries.filter(e => {
       if (!e) return false;
-      const entryDate = e.date || (e.createdAt ? e.createdAt.slice(0, 10) : '');
+      const entryDate = normalizeDateValue(e.date || (e.createdAt ? e.createdAt.slice(0, 10) : ''));
 
       if (dateRange.startIso && entryDate < dateRange.startIso) return false;
       if (dateRange.endIso && entryDate > dateRange.endIso) return false;

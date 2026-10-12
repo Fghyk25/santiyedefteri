@@ -1,6 +1,7 @@
 import { X, MapPin, ExternalLink, Calendar, UserCheck, CheckCircle2, Sparkles } from 'lucide-react';
 import { SantiyeEntry } from '../types';
 import { getImageSizeDisplay } from '../utils/imageCompressor';
+import { formatDisplayDate } from '../services/storageAndSync';
 
 interface PhotoPreviewModalProps {
   entry: SantiyeEntry | null;
@@ -184,7 +185,7 @@ export default function PhotoPreviewModal({ entry, onClose }: PhotoPreviewModalP
               <span className="text-slate-500 block flex items-center gap-1">
                 <Calendar className="w-3 h-3 text-slate-400" /> Tarih
               </span>
-              <span className="font-medium text-slate-900">{entry.date}</span>
+              <span className="font-medium text-slate-900" title={entry.date}>{formatDisplayDate(entry.date)}</span>
             </div>
             <div>
               <span className="text-slate-500 block flex items-center gap-1">

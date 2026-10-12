@@ -16,7 +16,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { ProjeTipi, SantiyeEntry } from '../types';
-import { exportToExcelFile } from '../services/storageAndSync';
+import { exportToExcelFile, formatDisplayDate } from '../services/storageAndSync';
 import PhotoPreviewModal from './PhotoPreviewModal';
 
 interface SantiyeTableProps {
@@ -74,7 +74,10 @@ export default function SantiyeTable({
   // Filtered rows
   const filteredEntries = entries.filter(e => {
     const q = searchTerm.toLowerCase();
+    const displayDate = formatDisplayDate(e.date).toLowerCase();
     const matchesSearch = 
+      e.date.toLowerCase().includes(q) ||
+      displayDate.includes(q) ||
       e.projeID.toLowerCase().includes(q) ||
       (e.projeAdi && e.projeAdi.toLowerCase().includes(q)) ||
       (e.projeTipi && e.projeTipi.toLowerCase().includes(q)) ||
@@ -264,7 +267,9 @@ export default function SantiyeTable({
                           Tip Seçilmedi
                         </span>
                       )}
-                      <span className="text-[11px] text-slate-500 font-mono">{row.date}</span>
+                      <span className="text-[11px] text-slate-500 font-mono" title={row.date}>
+                        {formatDisplayDate(row.date)}
+                      </span>
                       <span className="text-[10px] bg-slate-100 border border-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-bold">
                         👤 {row.createdBy || 'Sheff'}
                       </span>
@@ -451,7 +456,9 @@ export default function SantiyeTable({
 
                 return (
                   <tr key={row.id} className="hover:bg-blue-50/40 transition">
-                    <td className="py-2.5 px-3 font-mono whitespace-nowrap text-slate-600">{row.date}</td>
+                    <td className="py-2.5 px-3 font-mono whitespace-nowrap text-slate-600" title={row.date}>
+                      {formatDisplayDate(row.date)}
+                    </td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <span className={`font-bold text-xs ${
