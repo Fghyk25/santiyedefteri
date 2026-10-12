@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SantiyeEntry } from '../types';
 import { calculateLaborHours } from '../components/WeeklyPerformanceChart';
+import { normalizeDateValue, formatDisplayDate } from './storageAndSync';
 
 export interface ReportFilterOptions {
   startDate?: string;
@@ -47,7 +48,7 @@ export function generateWeeklyPdfReport(
   // 1. Filter entries based on options
   const filtered = entries.filter(e => {
     if (!e) return false;
-    const entryDate = e.date || (e.createdAt ? e.createdAt.slice(0, 10) : '');
+    const entryDate = normalizeDateValue(e.date || (e.createdAt ? e.createdAt.slice(0, 10) : ''));
 
     if (options.startDate && entryDate < options.startDate) return false;
     if (options.endDate && entryDate > options.endDate) return false;
@@ -87,7 +88,7 @@ export function generateWeeklyPdfReport(
     if (e.beforePhoto || e.afterPhoto) photoCount++;
     if (e.location) gpsCount++;
 
-    const dateKey = e.date || (e.createdAt ? e.createdAt.slice(0, 10) : 'Tarihsiz');
+    const dateKey = normalizeDateValue(e.date || (e.createdAt ? e.createdAt.slice(0, 10) : ''));
     if (!dailyAggregation[dateKey]) {
       dailyAggregation[dateKey] = {
         date: dateKey,
@@ -285,7 +286,7 @@ export function generateWeeklyPdfReport(
         const dateObj = new Date(d.date);
         const dayName = isNaN(dateObj.getTime()) ? '' : dateObj.toLocaleDateString('tr-TR', { weekday: 'long' });
         return [
-          trPdf(d.date),
+          trPdf(formatDisplayDate(d.date)),
           trPdf(dayName),
           trPdf(`${d.entriesCount} Imalat`),
           trPdf(`${Math.round(d.laborHours * 10) / 10} Saat`),
@@ -447,7 +448,7 @@ export function generateWeeklyPdfReport(
         : 'Yok';
 
       return [
-        trPdf(e.date),
+        trPdf(formatDisplayDate(e.date)),
         trPdf(e.projeID || '-'),
         trPdf(e.projeTipi || '-'),
         trPdf(`${e.santral || ''} - ${e.saha || ''}`),
