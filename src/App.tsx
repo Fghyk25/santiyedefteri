@@ -12,6 +12,7 @@ import {
   saveSyncConfig,
   dispatchToGoogleSheetsWebhook,
   fetchEntriesFromGoogleSheets,
+  importEntriesFromSpreadsheetFile,
   mergeAndDeduplicateEntries,
   DEFAULT_SYNC_CONFIG,
   DEFAULT_GOOGLE_WEBHOOK_URL,
@@ -209,6 +210,94 @@ export default function App() {
       setIsSyncing(false);
     }
   }, [entries, syncConfig, isSyncing, addLog]);
+
+  // Fetch live rows from Google Sheets directly (via URL or Webhook)
+  const handleFetchLiveFromGoogleSheets = useCallback(async (customSheetUrl?: string) => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+
+    const targetConfig: SyncConfig = {
+      ...syncConfig,
+      googleSheetUrl: customSheetUrl ? customSheetUrl.trim() : syncConfig.googleSheetUrl
+    };
+
+    addLog('📡 Google E-Tablo ve Apps Script üzerinden canlı kayıtlar sorgulanıyor...', 'info');
+
+    try {
+      const res = await fetchEntriesFromGoogleSheets(targetConfig);
+      if (res.success && res.entries.length > 0) {
+        setEntries(prev => {
+          const merged = mergeAndDeduplicateEntries(prev, res.entries);
+          saveEntriesToStorage(merged);
+          return merged;
+        });
+
+        const nowStr = new Date().toLocaleTimeString('tr-TR');
+        const updatedConfig: SyncConfig = {
+          ...targetConfig,
+          googleSheetUrl: res.sheetUrlDiscovered || targetConfig.googleSheetUrl,
+          lastSyncAttempt: nowStr,
+          lastSyncStatus: 'success',
+          lastSyncMessage: `Google Sheets'ten ${res.entries.length} kayıt Dashboard'a aktarıldı (${nowStr}).`
+        };
+        setSyncConfig(updatedConfig);
+        saveSyncConfig(updatedConfig);
+
+        addLog(`✅ ${res.message}`, 'success');
+      } else {
+        addLog(`⚠️ ${res.message}`, 'warning');
+      }
+    } catch (err: any) {
+      addLog(`❌ Veri okuma hatası: ${err?.message || 'Bağlantı kurulamadı'}`, 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing, syncConfig, addLog]);
+
+  // Import spreadsheet file directly (.xlsx / .csv) into Dashboard
+  const handleImportSpreadsheetFile = useCallback(async (file: File) => {
+    setIsSyncing(true);
+    addLog(`📂 ${file.name} dosyası işleniyor...`, 'info');
+    try {
+      const res = await importEntriesFromSpreadsheetFile(file);
+      if (res.success && res.entries.length > 0) {
+        setEntries(prev => {
+          const merged = mergeAndDeduplicateEntries(prev, res.entries);
+          saveEntriesToStorage(merged);
+          return merged;
+        });
+        addLog(`✅ ${res.message}`, 'success');
+      } else {
+        addLog(`⚠️ ${res.message}`, 'warning');
+      }
+    } catch (err: any) {
+      addLog(`❌ Dosya içe aktarma hatası: ${err?.message || 'Bilinmeyen hata'}`, 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [addLog]);
+
+  // Clear demo / initial dummy entries
+  const handleClearDemoEntries = useCallback(() => {
+    setEntries(prev => {
+      const cleared = prev.filter(e => !e.id.startsWith('rec-00'));
+      saveEntriesToStorage(cleared);
+      return cleared;
+    });
+    addLog('🧹 Başlangıç demo verileri temizlendi. Yalnızca gerçek şantiye kayıtları gösteriliyor.', 'info');
+  }, [addLog]);
+
+  // Update Google Sheet URL and immediately fetch
+  const handleUpdateSheetUrl = useCallback((url: string) => {
+    const trimmed = url.trim();
+    const updated = { ...syncConfig, googleSheetUrl: trimmed };
+    setSyncConfig(updated);
+    saveSyncConfig(updated);
+    addLog(`🔗 Google E-Tablo bağlantısı güncellendi: ${trimmed.slice(0, 45)}...`, 'info');
+    if (trimmed && trimmed.includes('/spreadsheets/d/')) {
+      handleFetchLiveFromGoogleSheets(trimmed);
+    }
+  }, [syncConfig, addLog, handleFetchLiveFromGoogleSheets]);
 
   // Auto-Sync Effect on periodic interval
   useEffect(() => {
@@ -452,6 +541,10 @@ export default function App() {
             syncLogs={syncLogs}
             isSyncing={isSyncing}
             onTriggerSync={handleTriggerSync}
+            onFetchFromGoogleSheets={handleFetchLiveFromGoogleSheets}
+            onImportFile={handleImportSpreadsheetFile}
+            onClearDemoEntries={handleClearDemoEntries}
+            onUpdateSheetUrl={handleUpdateSheetUrl}
             onUpdateAutoSync={handleUpdateAutoSync}
             onOpenSettings={currentUser.canAccessSettings ? () => setIsSettingsModalOpen(true) : undefined}
             onDeleteEntry={currentUser.isAdmin ? handleDeleteEntry : undefined}
@@ -469,6 +562,9 @@ export default function App() {
             entries={entries}
             syncConfig={syncConfig}
             onTriggerSync={handleTriggerSync}
+            onFetchFromGoogleSheets={handleFetchLiveFromGoogleSheets}
+            onImportFile={handleImportSpreadsheetFile}
+            onUpdateSheetUrl={handleUpdateSheetUrl}
             isSyncing={isSyncing}
           />
         )}
